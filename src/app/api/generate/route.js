@@ -7,8 +7,6 @@ export const maxDuration = 300; // 5 minutes max execution time
 export const dynamic = 'force-dynamic';
 
 export async function POST(request) {
-  console.log('Generate API called');
-  
   // Rate limiting - AI generation is expensive
   const ip = getClientIP(request);
   const { success, remaining, reset, limit } = rateLimit(ip, 'generate', rateLimits.generate);
@@ -29,12 +27,6 @@ export async function POST(request) {
   }
 
   try {
-    // Check API key
-    if (!process.env.OPENROUTER_API_KEY) {
-      console.error('OPENROUTER_API_KEY not configured');
-      return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
-    }
-    
     let body;
 
     // Check if the request is gzip-compressed
@@ -103,11 +95,6 @@ export async function POST(request) {
 
     const data = await response.json();
     
-    // Log the response structure for debugging
-    console.log('OpenRouter response structure:', Object.keys(data));
-    console.log('Model:', data.model);
-    console.log('Choices:', data.choices ? 'present' : 'missing');
-    
     // Check for OpenRouter errors
     if (data.error) {
       console.error('OpenRouter API error:', data.error);
@@ -126,7 +113,6 @@ export async function POST(request) {
     const content = data.choices[0].message.content;
     
     if (!content) {
-      console.error('Empty content from OpenRouter');
       return NextResponse.json({ error: 'Empty response from AI model' }, { status: 500 });
     }
     
