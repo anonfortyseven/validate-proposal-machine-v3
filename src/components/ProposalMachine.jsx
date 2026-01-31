@@ -2733,11 +2733,23 @@ Return complete slide layouts as JSON with { "slides": [...] } format.`;
 
       const data = await response.json();
 
+      // Debug logging
+      console.log('API response keys:', Object.keys(data));
+      console.log('Content present:', !!data.content);
+      console.log('Error present:', !!data.error);
+      
       if (data.error) {
-        throw new Error(data.error.message || 'API returned an error');
+        const errorMsg = data.error.message || data.error || 'API returned an error';
+        console.error('API error:', errorMsg, data.details);
+        throw new Error(errorMsg);
       }
 
       const text = data.content?.[0]?.text || '';
+      console.log('Response text length:', text.length);
+      
+      if (!text) {
+        throw new Error('Empty response from API - no content received');
+      }
 
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
