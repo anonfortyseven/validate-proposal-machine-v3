@@ -59,7 +59,7 @@ export async function POST(request) {
             'X-Title': 'VALIDATE Proposal Machine'
           },
           body: JSON.stringify({
-            model: 'moonshot/kimi-k2.5',
+            model: 'moonshotai/kimi-k2.5',
             max_tokens: max_tokens || 16000,
             temperature: 0.7,
             messages: [
