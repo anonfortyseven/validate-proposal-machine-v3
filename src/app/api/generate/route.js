@@ -7,6 +7,8 @@ export const maxDuration = 300; // 5 minutes max execution time
 export const dynamic = 'force-dynamic';
 
 export async function POST(request) {
+  console.log('Generate API called from IP:', getClientIP(request));
+  
   // Rate limiting - AI generation is expensive
   const ip = getClientIP(request);
   const { success, remaining, reset, limit } = rateLimit(ip, 'generate', rateLimits.generate);
@@ -122,6 +124,7 @@ export async function POST(request) {
       usage: data.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
     };
     
+    console.log('Generate API success, content length:', content.length);
     return NextResponse.json(transformedData);
   } catch (error) {
     console.error('Server error:', error);

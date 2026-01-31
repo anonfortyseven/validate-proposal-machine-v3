@@ -2729,15 +2729,20 @@ Return complete slide layouts as JSON with { "slides": [...] } format.`;
     };
     
     try {
+      console.log('Starting API call...');
       const response = await makeApiCall();
+      console.log('API response received, status:', response.status);
 
       const data = await response.json();
+      console.log('Response data keys:', Object.keys(data));
 
       if (data.error) {
+        console.error('API returned error:', data.error);
         throw new Error(data.error.message || data.error || 'API returned an error');
       }
 
       const text = data.content?.[0]?.text || '';
+      console.log('Response text length:', text?.length);
       
       if (!text) {
         throw new Error('Empty response from API - no content received');
@@ -2745,11 +2750,15 @@ Return complete slide layouts as JSON with { "slides": [...] } format.`;
 
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
+        console.error('No JSON found in response. Text preview:', text.substring(0, 200));
         throw new Error('Could not find JSON in response');
       }
 
+      console.log('Parsing JSON...');
       const parsed = JSON.parse(jsonMatch[0]);
+      console.log('Parsed keys:', Object.keys(parsed));
       const format = detectResponseFormat(parsed);
+      console.log('Detected format:', format);
 
       console.log('AI response format:', format);
 
@@ -2793,6 +2802,7 @@ Return complete slide layouts as JSON with { "slides": [...] } format.`;
 
     } catch (err) {
       console.error('Generation error:', err);
+      console.error('Error stack:', err.stack);
       const errorMessage = err.name === 'AbortError'
         ? 'Request timed out. Try with shorter notes or try again.'
         : (err.message || 'Failed to generate proposal');
@@ -2802,23 +2812,32 @@ Return complete slide layouts as JSON with { "slides": [...] } format.`;
     }
 
     // If we got here, we have valid slides - update UI immediately
+    console.log('Updating UI with new slides...');
     const newProjectId = `project-${Date.now()}`;
     const newName = projectNameInput || clientNameInput || 'New Proposal';
 
-    setProposal(proposalData);
-    setSlides(newSlides);
-    setHistory([JSON.stringify(newSlides)]);
-    setHistoryIndex(0);
-    setCurrentSlideIndex(0);
-    setSelectedElementIds([]);
-    setInputCollapsed(true);
-    setProjectName(newName);
-    setClientName(clientNameInput || '');
-    setCurrentProjectId(newProjectId);
-    setEditingMode('proposal'); // Set editing mode to proposal
-    setCurrentCaseStudyId(null); // Clear any case study ID
-    setOriginalNotes(rawInput); // Store original notes for AI context
-    setIsGenerating(false); // Clear loading state BEFORE storage operations
+    try {
+      setProposal(proposalData);
+      setSlides(newSlides);
+      setHistory([JSON.stringify(newSlides)]);
+      setHistoryIndex(0);
+      setCurrentSlideIndex(0);
+      setSelectedElementIds([]);
+      setInputCollapsed(true);
+      setProjectName(newName);
+      setClientName(clientNameInput || '');
+      setCurrentProjectId(newProjectId);
+      setEditingMode('proposal'); // Set editing mode to proposal
+      setCurrentCaseStudyId(null); // Clear any case study ID
+      setOriginalNotes(rawInput); // Store original notes for AI context
+      setIsGenerating(false); // Clear loading state BEFORE storage operations
+      console.log('UI updated successfully');
+    } catch (uiErr) {
+      console.error('UI update error:', uiErr);
+      setError('Failed to update UI: ' + uiErr.message);
+      setIsGenerating(false);
+      return;
+    }
 
     // Generate background images if requested (runs in background after UI is shown)
     if (generateBackgrounds && newSlides.length > 0) {
@@ -2832,6 +2851,7 @@ Return complete slide layouts as JSON with { "slides": [...] } format.`;
     }
 
     // Save to storage in background - don't block UI
+    console.log('Saving to storage...');
     try {
       const newProjectEntry = {
         id: newProjectId,
@@ -2843,6 +2863,7 @@ Return complete slide layouts as JSON with { "slides": [...] } format.`;
 
       // IMPORTANT: Fetch latest clients from Supabase to avoid overwriting others' projects
       let latestClients = await projectStorage.loadClientsIndex();
+      console.log('Loaded clients:', latestClients?.length || 0);
       if (!latestClients) latestClients = clients;
 
       let updatedClients = [...latestClients];
@@ -2884,14 +2905,16 @@ Return complete slide layouts as JSON with { "slides": [...] } format.`;
       };
 
       // Save to Supabase only
-      await Promise.all([
+      const [clientsSaved, projectSaved] = await Promise.all([
         projectStorage.saveClientsIndex(updatedClients),
         projectStorage.saveProject(newProjectId, projectData)
       ]);
+      console.log('Storage save results - clients:', clientsSaved, 'project:', projectSaved);
     } catch (storageErr) {
       console.error('Storage error (non-blocking):', storageErr);
       // Don't show error to user - the proposal is still visible
     }
+    console.log('handleGenerate complete');
   };
 
   // ============================================
