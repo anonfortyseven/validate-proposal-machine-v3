@@ -8025,16 +8025,10 @@ const projectStorage = {
     }
   },
 
-  // Load a project (directly from Supabase)
+  // Load a project (via API route)
   async loadProject(projectId) {
     try {
-      const response = await fetch(
-        `${SUPABASE_URL}/storage/v1/object/public/${PROJECTS_BUCKET}/projects/${projectId}.json?t=${Date.now()}`,
-        {
-          headers: supabaseHeaders,
-          cache: 'no-store'
-        }
-      );
+      const response = await fetch(`/api/storage?path=projects/${projectId}.json`);
       if (response.ok) {
         return await response.json();
       }
@@ -8045,24 +8039,17 @@ const projectStorage = {
     }
   },
 
-  // Save a project (directly to Supabase - bypasses Vercel's body size limits)
+  // Save a project (via API route)
   async saveProject(projectId, data) {
     try {
-      const response = await fetch(
-        `${SUPABASE_URL}/storage/v1/object/${PROJECTS_BUCKET}/projects/${projectId}.json`,
-        {
-          method: 'POST',
-          headers: {
-            ...supabaseHeaders,
-            'Content-Type': 'application/json',
-            'x-upsert': 'true'
-          },
-          body: JSON.stringify(data)
-        }
-      );
+      const response = await fetch('/api/storage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: `projects/${projectId}.json`, data })
+      });
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Failed to save project:', errorText);
+        const result = await response.json();
+        console.error('Failed to save project:', result.error);
       }
       return response.ok;
     } catch (e) {
