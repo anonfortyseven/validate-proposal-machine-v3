@@ -1,0 +1,11 @@
+{
+  "functions": {
+    "src/app/api/generate/route.js": {
+      "maxDuration": 300
+    }
+  },
+  "github": {
+    "enabled": true,
+    "autoAlias": true
+  }
+}
