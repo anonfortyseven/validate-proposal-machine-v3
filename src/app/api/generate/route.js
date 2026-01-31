@@ -49,18 +49,23 @@ export async function POST(request) {
       const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 minute timeout for layout generation
 
       try {
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
+        // OpenRouter API with Kimi K2.5 model
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-api-key': process.env.ANTHROPIC_API_KEY,
-            'anthropic-version': '2023-06-01'
+            'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+            'HTTP-Referer': 'https://validate-proposal-machine-v3.vercel.app',
+            'X-Title': 'VALIDATE Proposal Machine'
           },
           body: JSON.stringify({
-            model: 'claude-opus-4-5-20251101',
-            max_tokens: max_tokens || 16000, // Increased for full layout generation
-            system: system,
-            messages: messages
+            model: 'moonshot/kimi-k2.5',
+            max_tokens: max_tokens || 16000,
+            temperature: 0.7,
+            messages: [
+              { role: 'system', content: system },
+              ...messages
+            ]
           }),
           signal: controller.signal
         });
@@ -84,12 +89,20 @@ export async function POST(request) {
 
     if (!response.ok) {
       const error = await response.text();
-      console.error('Anthropic API error:', error);
+      console.error('OpenRouter API error:', error);
       return NextResponse.json({ error: 'API request failed', details: error }, { status: response.status });
     }
 
     const data = await response.json();
-    return NextResponse.json(data);
+    
+    // Transform OpenRouter response to match Anthropic format for compatibility
+    const transformedData = {
+      content: [{ type: 'text', text: data.choices[0].message.content }],
+      model: data.model,
+      usage: data.usage
+    };
+    
+    return NextResponse.json(transformedData);
   } catch (error) {
     console.error('Server error:', error);
     const message = error.name === 'AbortError' ? 'Request timed out' : 'Server error';
