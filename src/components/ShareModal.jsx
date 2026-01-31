@@ -3,15 +3,6 @@
 import React, { useState } from 'react';
 import { X, Link2, RefreshCw, Check, Copy, Lock, Clock, AlertCircle, User, Shield, Share2 } from 'lucide-react';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_KEY;
-const PROJECTS_BUCKET = 'validate-projects';
-
-const supabaseHeaders = {
-  'apikey': SUPABASE_KEY,
-  'Authorization': `Bearer ${SUPABASE_KEY}`
-};
-
 export default function ShareModal({ projectName, clientName, slides, contactName, contactEmail, contactPhone, onContactNameChange, onContactEmailChange, onContactPhoneChange, onClose }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
@@ -31,58 +22,30 @@ export default function ShareModal({ projectName, clientName, slides, contactNam
     setError(null);
 
     try {
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-      let shareId = '';
-      for (let i = 0; i < 21; i++) {
-        shareId += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
+      const response = await fetch('/api/share', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          projectName: projectName || 'Untitled Proposal',
+          clientName: clientName || '',
+          slides,
+          password: usePassword ? password : null,
+          expiresInDays,
+          contactName: contactName || '',
+          contactEmail: contactEmail || '',
+          contactPhone: contactPhone || ''
+        })
+      });
 
-      const hashPassword = (pwd) => {
-        let hash = 0;
-        for (let i = 0; i < pwd.length; i++) {
-          const char = pwd.charCodeAt(i);
-          hash = ((hash << 5) - hash) + char;
-          hash = hash & hash;
-        }
-        return hash.toString(36);
-      };
-
-      const now = new Date().toISOString();
-      const share = {
-        id: shareId,
-        projectName: projectName || 'Untitled Proposal',
-        clientName: clientName || '',
-        createdAt: now,
-        expiresAt: expiresInDays ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString() : null,
-        passwordHash: usePassword && password ? hashPassword(password) : null,
-        viewCount: 0,
-        lastViewedAt: null,
-        contactName: contactName || '',
-        contactEmail: contactEmail || '',
-        contactPhone: contactPhone || '',
-        slides
-      };
-
-      const response = await fetch(
-        `${SUPABASE_URL}/storage/v1/object/${PROJECTS_BUCKET}/shares/${shareId}.json`,
-        {
-          method: 'POST',
-          headers: {
-            ...supabaseHeaders,
-            'Content-Type': 'application/json',
-            'x-upsert': 'true'
-          },
-          body: JSON.stringify(share)
-        }
-      );
+      const data = await response.json();
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Supabase upload error:', errorText);
-        throw new Error('Failed to create share link');
+        throw new Error(data.error || 'Failed to create share link');
       }
 
-      const fullUrl = `${window.location.origin}/p/${shareId}`;
+      const fullUrl = `${window.location.origin}${data.url}`;
       setShareUrl(fullUrl);
     } catch (e) {
       setError(e.message);

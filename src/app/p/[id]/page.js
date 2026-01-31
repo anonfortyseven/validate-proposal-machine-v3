@@ -1,20 +1,15 @@
 import ProposalViewer from './ProposalViewer';
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY;
-const PROJECTS_BUCKET = 'validate-projects';
-
 async function getShare(id) {
   try {
+    // Use internal API route to fetch share data
+    const baseUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}`
+      : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    
     const response = await fetch(
-      `${SUPABASE_URL}/storage/v1/object/public/${PROJECTS_BUCKET}/shares/${id}.json?t=${Date.now()}`,
-      {
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`
-        },
-        cache: 'no-store'
-      }
+      `${baseUrl}/api/share?id=${id}`,
+      { cache: 'no-store' }
     );
 
     if (!response.ok) {
@@ -172,13 +167,11 @@ export default async function ProposalPage({ params }) {
   }
 
   // Pass share data to client component
-  // Remove password hash for security
-  const { passwordHash, ...safeShare } = share;
-
+  // API already strips password hash and returns hasPassword boolean
   return (
     <ProposalViewer
-      share={safeShare}
-      hasPassword={!!passwordHash}
+      share={share}
+      hasPassword={share.hasPassword}
       shareId={params.id}
     />
   );
