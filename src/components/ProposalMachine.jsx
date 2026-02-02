@@ -8529,10 +8529,9 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
 
   const deleteFromSupabase = async (path) => {
     try {
-      await fetch(
-        `${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${path}`,
-        { method: 'DELETE', headers: supabaseHeaders }
-      );
+      await fetch(`/api/storage/upload?path=${encodeURIComponent(path)}`, {
+        method: 'DELETE'
+      });
     } catch (e) {
       console.error('Delete failed:', path);
     }
@@ -8572,22 +8571,19 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
         const prefix = isVideo ? 'videos/' : '';
         const filename = `${prefix}${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${ext}`;
 
-        const response = await fetch(
-          `${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${filename}`,
-          {
-            method: 'POST',
-            mode: 'cors',
-            headers: {
-              'apikey': SUPABASE_KEY,
-              'Authorization': `Bearer ${SUPABASE_KEY}`,
-              'Content-Type': file.type,
-              'x-upsert': 'true'
-            },
-            body: file
-          }
-        );
+        // Upload via API route (uses service_role key server-side)
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('filename', filename);
 
-        if (response.ok) {
+        const response = await fetch('/api/storage/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
           newImages.push({
             id: filename,
             name: file.name,
@@ -8600,13 +8596,12 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
             isVideo: isVideo  // Flag to identify videos
           });
         } else {
-          const errText = await response.text();
-          console.error('Upload failed:', response.status, errText);
+          console.error('Upload failed:', response.status, result.error);
           // Better error message for payload too large
-          if (response.status === 413 || errText.includes('Payload too large')) {
+          if (response.status === 413 || (result.error && result.error.includes('Payload too large'))) {
             setStorageError(`File too large. Please increase the upload limit in Supabase Dashboard → Storage → Settings.`);
           } else {
-            setStorageError(`Upload failed: ${errText.substring(0, 100)}`);
+            setStorageError(`Upload failed: ${result.error?.substring(0, 100) || 'Unknown error'}`);
           }
         }
       } catch (err) {
