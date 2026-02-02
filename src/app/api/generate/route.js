@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request) {
   console.log('Generate API called from IP:', getClientIP(request));
-  
+
   // Rate limiting - AI generation is expensive
   const ip = getClientIP(request);
   const { success, remaining, reset, limit } = rateLimit(ip, 'generate', rateLimits.generate);
@@ -51,23 +51,18 @@ export async function POST(request) {
       const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 minute timeout for layout generation
 
       try {
-        // OpenRouter API with Kimi K2.5 model
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-            'HTTP-Referer': 'https://validate-proposal-machine-v3.vercel.app',
-            'X-Title': 'VALIDATE Proposal Machine'
+            'x-api-key': process.env.ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01'
           },
           body: JSON.stringify({
-            model: 'moonshotai/kimi-k2.5',
+            model: 'claude-opus-4-5-20251101',
             max_tokens: max_tokens || 16000,
-            temperature: 0.7,
-            messages: [
-              { role: 'system', content: system },
-              ...messages
-            ]
+            system: system,
+            messages: messages
           }),
           signal: controller.signal
         });
@@ -91,41 +86,13 @@ export async function POST(request) {
 
     if (!response.ok) {
       const error = await response.text();
-      console.error('OpenRouter API error:', error);
+      console.error('Anthropic API error:', error);
       return NextResponse.json({ error: 'API request failed', details: error }, { status: response.status });
     }
 
     const data = await response.json();
-    
-    // Check for OpenRouter errors
-    if (data.error) {
-      console.error('OpenRouter API error:', data.error);
-      return NextResponse.json({ 
-        error: data.error.message || 'OpenRouter API error', 
-        details: data.error 
-      }, { status: 400 });
-    }
-    
-    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      console.error('Unexpected OpenRouter response:', JSON.stringify(data).slice(0, 500));
-      return NextResponse.json({ error: 'Unexpected API response format', details: data }, { status: 500 });
-    }
-    
-    // Transform OpenRouter response to match Anthropic format for compatibility
-    const content = data.choices[0].message.content;
-    
-    if (!content) {
-      return NextResponse.json({ error: 'Empty response from AI model' }, { status: 500 });
-    }
-    
-    const transformedData = {
-      content: [{ type: 'text', text: content }],
-      model: data.model,
-      usage: data.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
-    };
-    
-    console.log('Generate API success, content length:', content.length);
-    return NextResponse.json(transformedData);
+    console.log('Generate API success, content length:', data.content?.[0]?.text?.length || 0);
+    return NextResponse.json(data);
   } catch (error) {
     console.error('Server error:', error);
     const message = error.name === 'AbortError' ? 'Request timed out' : 'Server error';
