@@ -4,6 +4,39 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY; // service_role key for bypassing RLS
 const IMAGES_BUCKET = 'validate-images';
 
+// GET - List files in Supabase Storage
+export async function GET(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const prefix = searchParams.get('prefix') || '';
+
+    const response = await fetch(
+      `${SUPABASE_URL}/storage/v1/object/list/${IMAGES_BUCKET}`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ prefix, limit: 1000 })
+      }
+    );
+
+    if (response.ok) {
+      const files = await response.json();
+      return NextResponse.json(files);
+    }
+
+    const errorText = await response.text();
+    console.error('Supabase list error:', errorText);
+    return NextResponse.json({ error: errorText }, { status: response.status });
+  } catch (e) {
+    console.error('List error:', e);
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
+
 // POST - Upload file to Supabase Storage
 export async function POST(request) {
   try {

@@ -8255,25 +8255,13 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
 
       setFolders(loadedFolders);
 
-      // List files from Supabase (root level)
-      const response = await fetch(
-        `${SUPABASE_URL}/storage/v1/object/list/${STORAGE_BUCKET}`,
-        {
-          method: 'POST',
-          mode: 'cors',
-          headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ prefix: '', limit: 1000 })
-        }
-      );
+      // List files from Supabase via API route (root level)
+      const response = await fetch('/api/storage/upload?prefix=');
 
       if (!response.ok) {
-        const errText = await response.text();
-        console.error('Supabase list error:', response.status, errText);
-        setStorageError(`List error (${response.status}): ${errText.substring(0, 80)}`);
+        const result = await response.json();
+        console.error('List error:', response.status, result.error);
+        setStorageError(`List error (${response.status}): ${result.error?.substring(0, 80) || 'Unknown error'}`);
         setIsLoading(false);
         return;
       }
@@ -8282,19 +8270,7 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
 
       // Also list files from videos/ subfolder
       try {
-        const videosResponse = await fetch(
-          `${SUPABASE_URL}/storage/v1/object/list/${STORAGE_BUCKET}`,
-          {
-            method: 'POST',
-            mode: 'cors',
-            headers: {
-              'apikey': SUPABASE_KEY,
-              'Authorization': `Bearer ${SUPABASE_KEY}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ prefix: 'videos/', limit: 1000 })
-          }
-        );
+        const videosResponse = await fetch('/api/storage/upload?prefix=videos/');
         if (videosResponse.ok) {
           const videoFiles = await videosResponse.json();
           // Add videos/ prefix to file names for proper path
