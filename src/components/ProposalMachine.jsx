@@ -12,9 +12,18 @@ import { jsPDF } from 'jspdf';
 import pako from 'pako';
 
 // VALIDATE logo URL - uses env var or falls back to placeholder
-const LOGO_URL = process.env.NEXT_PUBLIC_SUPABASE_URL 
+const LOGO_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
   ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/validate-projects/assets/VALIDATE_W.png`
   : 'https://placehold.co/200x50/0c0c0e/ffffff?text=VALIDATE';
+
+// Helper to resolve image sources - handles VALIDATE_W.png references
+const resolveImageSrc = (src) => {
+  if (!src) return src;
+  if (src === 'VALIDATE_W.png' || src.endsWith('/VALIDATE_W.png')) {
+    return LOGO_URL;
+  }
+  return src;
+};
 
 // Storage is now 100% Supabase - no localStorage
 // The projectStorage object (defined later) handles all persistence
@@ -2103,7 +2112,7 @@ export default function ValidateProposalMachine() {
             `;
           } else if (element.type === 'image') {
             const img = document.createElement('img');
-            img.src = element.src;
+            img.src = resolveImageSrc(element.src);
             img.crossOrigin = 'anonymous';
             const imgBorderRadius = element.frameStyle === 'rounded' ? '8px' : '0';
             img.style.cssText = `
@@ -6806,7 +6815,7 @@ function ElementRenderer({ element, isSelected, onMouseDown, onUpdateElement, on
             />
           ) : (
             <img
-              src={element.src}
+              src={resolveImageSrc(element.src)}
               alt=""
               className="w-full h-full"
               draggable={false}
@@ -9528,8 +9537,8 @@ function ImageCropper({ element, onSave, onClose }) {
           onMouseLeave={handleMouseUp}
           onWheel={handleWheel}
         >
-          <img 
-            src={element.src} 
+          <img
+            src={resolveImageSrc(element.src)}
             alt=""
             draggable={false}
             className="w-full h-full select-none"

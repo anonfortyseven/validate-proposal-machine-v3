@@ -4,9 +4,19 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Lock, Download, Loader2, ChevronDown, ChevronRight, AlertCircle, Mail, Phone } from 'lucide-react';
 
-const LOGO_URL = process.env.NEXT_PUBLIC_SUPABASE_URL 
+const LOGO_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
   ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/validate-projects/assets/VALIDATE_W.png`
   : 'https://placehold.co/200x50/0c0c0e/ffffff?text=VALIDATE';
+
+// Helper to resolve image sources - handles VALIDATE_W.png references
+const resolveImageSrc = (src) => {
+  if (!src) return src;
+  if (src === 'VALIDATE_W.png' || src.endsWith('/VALIDATE_W.png')) {
+    return LOGO_URL;
+  }
+  return src;
+};
+
 const CANVAS_WIDTH = 900;
 const CANVAS_HEIGHT = 506;
 
@@ -146,7 +156,7 @@ function PDFElementRenderer({ element }) {
     return (
       <div style={imageStyle}>
         <img
-          src={element.src}
+          src={resolveImageSrc(element.src)}
           alt=""
           crossOrigin="anonymous"
           style={{
@@ -571,7 +581,7 @@ function ElementRenderer({ element }) {
         <div style={imageStyle}>
           <video
             src={element.videoSrc}
-            poster={element.src}
+            poster={resolveImageSrc(element.src)}
             autoPlay
             loop
             muted
@@ -585,7 +595,7 @@ function ElementRenderer({ element }) {
     return (
       <div style={imageStyle}>
         <img
-          src={element.src}
+          src={resolveImageSrc(element.src)}
           alt=""
           className="w-full h-full object-cover"
           style={{
