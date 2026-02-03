@@ -2,21 +2,26 @@ import ProposalViewer from './ProposalViewer';
 
 async function getShare(id) {
   try {
-    // Use internal API route to fetch share data
-    const baseUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}`
-      : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    
+    // Fetch directly from Supabase public URL (more reliable for SSR)
+    const SUPABASE_URL = process.env.SUPABASE_URL || 'https://wyshbbvrnrjwsoaycvaf.supabase.co';
     const response = await fetch(
-      `${baseUrl}/api/share?id=${id}`,
+      `${SUPABASE_URL}/storage/v1/object/public/validate-projects/shares/${id}.json?t=${Date.now()}`,
       { cache: 'no-store' }
     );
 
     if (!response.ok) {
+      console.error('Share fetch failed:', response.status);
       return null;
     }
 
-    return await response.json();
+    const share = await response.json();
+
+    // Strip password hash for security, add hasPassword flag
+    const { passwordHash, ...safeShare } = share;
+    return {
+      ...safeShare,
+      hasPassword: !!passwordHash
+    };
   } catch (e) {
     console.error('Error fetching share:', e);
     return null;
