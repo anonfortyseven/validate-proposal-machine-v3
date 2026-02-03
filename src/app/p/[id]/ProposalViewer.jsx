@@ -318,23 +318,16 @@ function AtmosphericBackground() {
     <div className="fixed inset-0 pointer-events-none overflow-hidden">
       {/* Subtle radial gradient from top */}
       <div
-        className="absolute inset-0 opacity-40"
+        className="absolute inset-0 opacity-30"
         style={{
-          background: 'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(196, 30, 58, 0.08) 0%, transparent 60%)',
+          background: 'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(196, 30, 58, 0.06) 0%, transparent 60%)',
         }}
       />
-      {/* Film grain texture overlay */}
-      <div
-        className="absolute inset-0 opacity-[0.015]"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-        }}
-      />
-      {/* Vignette effect */}
+      {/* Subtle vignette effect */}
       <div
         className="absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.4) 100%)',
+          background: 'radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.3) 100%)',
         }}
       />
     </div>
@@ -893,13 +886,6 @@ function CinematicIntro({ clientName, projectName, onComplete }) {
 
   return (
     <div className="fixed inset-0 bg-black z-50 overflow-hidden">
-      {/* Subtle noise texture */}
-      <div
-        className="absolute inset-0 opacity-[0.03] pointer-events-none"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-        }}
-      />
 
       {/* ===== GEOMETRIC GRID SYSTEM ===== */}
       <div className="absolute inset-0 flex items-center justify-center">
@@ -1196,14 +1182,6 @@ function CinematicIntro({ clientName, projectName, onComplete }) {
         }}
       />
 
-      {/* ===== SCAN LINES OVERLAY ===== */}
-      <div
-        className="absolute inset-0 pointer-events-none transition-opacity duration-500"
-        style={{
-          opacity: phase >= 1 && phase < 6 ? 0.03 : 0,
-          backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 4px)',
-        }}
-      />
     </div>
   );
 }
