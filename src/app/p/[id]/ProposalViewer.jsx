@@ -1265,10 +1265,10 @@ function EndCard({ shareData, onDownloadPdf, isExporting, exportProgress }) {
 
       {/* VALIDATE branding */}
       <div className="mt-12">
-        <div className="w-8 h-1 bg-accent/30 rounded-full mx-auto mb-4" />
-        <p className="text-[10px] font-mono tracking-[0.3em] text-text-muted uppercase">
-          Powered by VALIDATE
-        </p>
+        <div className="w-8 h-1 bg-accent/30 rounded-full mx-auto mb-6" />
+        <a href="https://createwithvalidate.com" target="_blank" rel="noopener noreferrer">
+          <img src={LOGO_URL} alt="VALIDATE" className="h-6 w-auto mx-auto opacity-60 hover:opacity-100 transition-opacity" />
+        </a>
       </div>
     </div>
   );
@@ -1555,7 +1555,9 @@ export default function ProposalViewer({ share, hasPassword, shareId }) {
       >
         <div className="bg-black/80 backdrop-blur-xl border-b border-zinc-800/30">
           <div className="max-w-6xl mx-auto px-8 py-5 flex items-center justify-between">
-            <img src={LOGO_URL} alt="VALIDATE" className="h-4 w-auto opacity-70" />
+            <a href="https://createwithvalidate.com" target="_blank" rel="noopener noreferrer">
+              <img src={LOGO_URL} alt="VALIDATE" className="h-6 w-auto opacity-80 hover:opacity-100 transition-opacity" />
+            </a>
 
             <div className="text-center">
               <h1
