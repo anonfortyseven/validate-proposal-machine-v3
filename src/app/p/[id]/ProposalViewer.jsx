@@ -316,18 +316,29 @@ function CornerAccents({ className = '' }) {
 function AtmosphericBackground() {
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden">
+      {/* Grid pattern */}
+      <div
+        className="absolute inset-0 opacity-[0.04]"
+        style={{
+          backgroundImage: `
+            linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)
+          `,
+          backgroundSize: '60px 60px',
+        }}
+      />
       {/* Subtle radial gradient from top */}
       <div
         className="absolute inset-0 opacity-30"
         style={{
-          background: 'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(196, 30, 58, 0.06) 0%, transparent 60%)',
+          background: 'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(196, 30, 58, 0.08) 0%, transparent 60%)',
         }}
       />
-      {/* Subtle vignette effect */}
+      {/* Subtle vignette effect - fades out grid at edges */}
       <div
         className="absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.3) 100%)',
+          background: 'radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.5) 100%)',
         }}
       />
     </div>
