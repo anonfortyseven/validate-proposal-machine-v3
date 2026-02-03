@@ -588,6 +588,7 @@ function ElementRenderer({ element }) {
           <video
             src={element.videoSrc}
             poster={resolveImageSrc(element.src)}
+            crossOrigin="anonymous"
             autoPlay
             loop
             muted
@@ -603,6 +604,7 @@ function ElementRenderer({ element }) {
         <img
           src={resolveImageSrc(element.src)}
           alt=""
+          crossOrigin="anonymous"
           className={`w-full h-full ${isLogoImage(element.src) ? 'object-contain' : 'object-cover'}`}
           style={{
             transform: isLogoImage(element.src) ? 'none' : (element.cropZoom ? `scale(${element.cropZoom})` : undefined),
