@@ -17,6 +17,12 @@ const resolveImageSrc = (src) => {
   return src;
 };
 
+// Check if an image is the VALIDATE logo (needs special styling)
+const isLogoImage = (src) => {
+  if (!src) return false;
+  return src === 'VALIDATE_W.png' || src.endsWith('/VALIDATE_W.png') || src.includes('VALIDATE_W.png');
+};
+
 const CANVAS_WIDTH = 900;
 const CANVAS_HEIGHT = 506;
 
@@ -162,8 +168,8 @@ function PDFElementRenderer({ element }) {
           style={{
             width: '100%',
             height: '100%',
-            objectFit: 'cover',
-            transform: element.cropZoom ? `scale(${element.cropZoom})` : undefined,
+            objectFit: isLogoImage(element.src) ? 'contain' : 'cover',
+            transform: isLogoImage(element.src) ? 'none' : (element.cropZoom ? `scale(${element.cropZoom})` : undefined),
             transformOrigin:
               element.cropX !== undefined && element.cropY !== undefined
                 ? `${element.cropX}% ${element.cropY}%`
@@ -597,9 +603,9 @@ function ElementRenderer({ element }) {
         <img
           src={resolveImageSrc(element.src)}
           alt=""
-          className="w-full h-full object-cover"
+          className={`w-full h-full ${isLogoImage(element.src) ? 'object-contain' : 'object-cover'}`}
           style={{
-            transform: element.cropZoom ? `scale(${element.cropZoom})` : undefined,
+            transform: isLogoImage(element.src) ? 'none' : (element.cropZoom ? `scale(${element.cropZoom})` : undefined),
             transformOrigin:
               element.cropX !== undefined && element.cropY !== undefined
                 ? `${element.cropX}% ${element.cropY}%`

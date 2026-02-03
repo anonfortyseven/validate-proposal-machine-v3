@@ -25,6 +25,12 @@ const resolveImageSrc = (src) => {
   return src;
 };
 
+// Check if an image is the VALIDATE logo (needs special styling)
+const isLogoImage = (src) => {
+  if (!src) return false;
+  return src === 'VALIDATE_W.png' || src.endsWith('/VALIDATE_W.png') || src.includes('VALIDATE_W.png');
+};
+
 // Storage is now 100% Supabase - no localStorage
 // The projectStorage object (defined later) handles all persistence
 
@@ -2115,10 +2121,11 @@ export default function ValidateProposalMachine() {
             img.src = resolveImageSrc(element.src);
             img.crossOrigin = 'anonymous';
             const imgBorderRadius = element.frameStyle === 'rounded' ? '8px' : '0';
+            const imgObjectFit = isLogoImage(element.src) ? 'contain' : 'cover';
             img.style.cssText = `
               width: 100%;
               height: 100%;
-              object-fit: cover;
+              object-fit: ${imgObjectFit};
               border-radius: ${imgBorderRadius};
             `;
             el.appendChild(img);
@@ -6822,9 +6829,9 @@ function ElementRenderer({ element, isSelected, onMouseDown, onUpdateElement, on
               style={{
                 marginLeft: element.frameStyle === 'validate' ? 8 : 0,
                 borderRadius: 'inherit',
-                objectFit: 'cover',
-                objectPosition: `${cropX}% ${cropY}%`,
-                transform: `scale(${cropZoom})`,
+                objectFit: isLogoImage(element.src) ? 'contain' : 'cover',
+                objectPosition: isLogoImage(element.src) ? 'center' : `${cropX}% ${cropY}%`,
+                transform: isLogoImage(element.src) ? 'none' : `scale(${cropZoom})`,
                 transformOrigin: `${cropX}% ${cropY}%`
               }}
             />
