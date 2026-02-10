@@ -3,10 +3,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Lock, Loader2, ChevronRight, AlertCircle } from 'lucide-react';
 
-const LOGO_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-  ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/validate-projects/assets/VALIDATE_W.png`
-  : 'https://placehold.co/200x50/0c0c0e/ffffff?text=VALIDATE';
-
 const AuthContext = createContext(null);
 
 export function useAuth() {
@@ -114,16 +110,6 @@ export default function LoginGate({ children }) {
         }}
       >
         <div className="p-8 bg-bg-secondary/90 backdrop-blur-xl border border-border rounded-2xl shadow-2xl">
-          {/* Logo */}
-          <div className="text-center mb-8">
-            <img
-              src={LOGO_URL}
-              alt="VALIDATE"
-              className="h-8 w-auto mx-auto mb-6"
-            />
-            <div className="w-12 h-1 bg-accent rounded-full mx-auto mb-6" />
-          </div>
-
           {/* Lock Icon */}
           <div className="flex justify-center mb-6">
             <div className="w-16 h-16 rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center">
@@ -133,8 +119,8 @@ export default function LoginGate({ children }) {
 
           {/* Text */}
           <div className="text-center mb-8">
-            <h1 className="text-text-primary text-xl font-medium mb-2">Welcome Back</h1>
-            <p className="text-text-tertiary text-sm">Enter the password to access the proposal builder</p>
+            <h1 className="text-text-primary text-xl font-medium mb-2">Authorized Access Only</h1>
+            <p className="text-text-tertiary text-sm">Enter your password to continue</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -176,10 +162,6 @@ export default function LoginGate({ children }) {
             </button>
           </form>
 
-          {/* Footer */}
-          <p className="text-center text-text-muted text-xs mt-6">
-            Powered by VALIDATE
-          </p>
         </div>
       </div>
     </div>
