@@ -5361,6 +5361,7 @@ ${imageGenInstructions}`;
                 }}
                 onSaveSlide={saveCurrentSlide}
                 savingSlide={savingSlide}
+                onShowSavedSlides={() => setShowSavedSlidesLibrary(true)}
               />
             ) : (
               <EmptyState
@@ -6008,7 +6009,7 @@ function MobileEditorPanel({ selectedElement, slide, onUpdateElement, onUpdateBa
 // SLIDE EDITOR (Canvas)
 // ============================================
 // EXPIRATION MODAL
-function SlideEditor({ slide, slideIndex, totalSlides, selectedElementIds, onSelectElement, onUpdateElement, onUpdateMultipleElements, onDeleteElement, onNavigate, onAddSlide, onDeleteSlide, isMobile, onMobileEdit, onDropImage, onOpenCropper, editingBackground, onUpdateBackground, editingMode, onInsertCaseStudy, onSaveSlide, savingSlide }) {
+function SlideEditor({ slide, slideIndex, totalSlides, selectedElementIds, onSelectElement, onUpdateElement, onUpdateMultipleElements, onDeleteElement, onNavigate, onAddSlide, onDeleteSlide, isMobile, onMobileEdit, onDropImage, onOpenCropper, editingBackground, onUpdateBackground, editingMode, onInsertCaseStudy, onSaveSlide, savingSlide, onShowSavedSlides }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const [scale, setScale] = useState(1);
@@ -6738,11 +6739,6 @@ function SlideEditor({ slide, slideIndex, totalSlides, selectedElementIds, onSel
               <button onClick={onAddSlide} className="px-2.5 py-1.5 bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800/60 hover:border-zinc-700 rounded-md text-zinc-300 text-[11px] flex items-center gap-1.5 transition-all group btn-interactive press-effect">
                 <Plus className="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-colors" /> Add Slide
               </button>
-              {editingMode === 'proposal' && onInsertCaseStudy && (
-                <button onClick={onInsertCaseStudy} className="px-2.5 py-1.5 bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800/60 hover:border-zinc-700 rounded-md text-zinc-300 text-[11px] flex items-center gap-1.5 transition-all group btn-interactive press-effect">
-                  <Folder className="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-colors" /> Insert Case Study
-                </button>
-              )}
               {onSaveSlide && (
                 <button
                   onClick={onSaveSlide}
@@ -6762,6 +6758,11 @@ function SlideEditor({ slide, slideIndex, totalSlides, selectedElementIds, onSel
                   ) : (
                     <><Star className="w-3 h-3 text-zinc-500 group-hover:text-amber-400 transition-colors" /> Save Slide</>
                   )}
+                </button>
+              )}
+              {onShowSavedSlides && (
+                <button onClick={onShowSavedSlides} className="px-2.5 py-1.5 bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800/60 hover:border-zinc-700 rounded-md text-zinc-300 text-[11px] flex items-center gap-1.5 transition-all group btn-interactive press-effect">
+                  <Star className="w-3 h-3 text-amber-500/70 group-hover:text-amber-400 transition-colors" fill="currentColor" /> Saved Slides
                 </button>
               )}
               {totalSlides > 1 && (
