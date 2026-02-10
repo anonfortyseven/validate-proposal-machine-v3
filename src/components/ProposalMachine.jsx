@@ -1062,6 +1062,7 @@ export default function ValidateProposalMachine() {
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const historyIndexRef = useRef(-1); // Keep ref in sync to avoid stale closures
+  const clipboardRef = useRef(null); // Stores copied elements for Ctrl+C/V
   const isUndoingRef = useRef(false);
   const MAX_HISTORY = 50; // Support at least 20+ undo steps
 
@@ -4861,6 +4862,58 @@ ${imageGenInstructions}`;
         e.preventDefault();
         redo();
       }
+      // Copy selected elements
+      if ((e.metaKey || e.ctrlKey) && e.key === 'c' && selectedElementIds.length > 0) {
+        const currentSlides = slidesRef.current;
+        const safeIdx = Math.min(Math.max(0, currentSlideIndex), currentSlides.length - 1);
+        const slide = currentSlides[safeIdx];
+        if (slide) {
+          const copied = slide.elements.filter(el => selectedElementIds.includes(el.id));
+          if (copied.length > 0) {
+            clipboardRef.current = JSON.parse(JSON.stringify(copied));
+          }
+        }
+      }
+
+      // Paste copied elements
+      if ((e.metaKey || e.ctrlKey) && e.key === 'v' && clipboardRef.current && clipboardRef.current.length > 0) {
+        e.preventDefault();
+        const PASTE_OFFSET = 20;
+        const newElements = clipboardRef.current.map(el => ({
+          ...el,
+          id: generateElementId(),
+          x: el.x + PASTE_OFFSET,
+          y: el.y + PASTE_OFFSET
+        }));
+        updateSlides(prev => prev.map((slide, idx) => {
+          if (idx !== currentSlideIndex) return slide;
+          return { ...slide, elements: [...slide.elements, ...newElements] };
+        }));
+        setSelectedElementIds(newElements.map(el => el.id));
+      }
+
+      // Duplicate selected elements (Ctrl+D)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'd' && selectedElementIds.length > 0) {
+        e.preventDefault();
+        const currentSlides = slidesRef.current;
+        const safeIdx = Math.min(Math.max(0, currentSlideIndex), currentSlides.length - 1);
+        const slide = currentSlides[safeIdx];
+        if (slide) {
+          const toDuplicate = slide.elements.filter(el => selectedElementIds.includes(el.id));
+          const duped = toDuplicate.map(el => ({
+            ...JSON.parse(JSON.stringify(el)),
+            id: generateElementId(),
+            x: el.x + 20,
+            y: el.y + 20
+          }));
+          updateSlides(prev => prev.map((s, idx) => {
+            if (idx !== currentSlideIndex) return s;
+            return { ...s, elements: [...s.elements, ...duped] };
+          }));
+          setSelectedElementIds(duped.map(el => el.id));
+        }
+      }
+
       // Delete selected elements (supports multi-select)
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedElementIds.length > 0) {
         e.preventDefault();
@@ -4872,7 +4925,7 @@ ${imageGenInstructions}`;
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, selectedElementIds, deleteElement, slides.length]);
+  }, [undo, redo, selectedElementIds, deleteElement, slides.length, currentSlideIndex, updateSlides]);
 
   const addSlide = () => {
     const newSlide = {
