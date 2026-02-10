@@ -1042,6 +1042,7 @@ export default function ValidateProposalMachine() {
   // Saved Slides (Favorites) state
   const [savedSlides, setSavedSlides] = useState([]);
   const [showSavedSlidesLibrary, setShowSavedSlidesLibrary] = useState(false);
+  const [savingSlide, setSavingSlide] = useState(false); // 'saving' | 'saved' | false
 
   // Share state
   const [showShareModal, setShowShareModal] = useState(false);
@@ -3377,42 +3378,51 @@ Return complete slide layouts as JSON with { "slides": [...] } format.`;
 
   const saveCurrentSlide = async () => {
     const slide = slidesRef.current[currentSlideIndex];
-    if (!slide) return;
+    if (!slide || savingSlide) return;
 
-    const savedSlideId = `ss-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const thumbnail = await generateSlideThumbnail(slide);
+    setSavingSlide('saving');
+    try {
+      const savedSlideId = `ss-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const thumbnail = await generateSlideThumbnail(slide);
 
-    const indexEntry = {
-      id: savedSlideId,
-      name: slide.name || 'Saved Slide',
-      thumbnail,
-      createdAt: new Date().toISOString(),
-      sourceProject: projectNameRef.current || ''
-    };
+      const indexEntry = {
+        id: savedSlideId,
+        name: slide.name || 'Saved Slide',
+        thumbnail,
+        createdAt: new Date().toISOString(),
+        sourceProject: projectNameRef.current || ''
+      };
 
-    const savedSlideData = {
-      id: savedSlideId,
-      name: slide.name || 'Saved Slide',
-      slide: JSON.parse(JSON.stringify(slide)),
-      savedAt: new Date().toISOString(),
-      sourceProject: projectNameRef.current || ''
-    };
+      const savedSlideData = {
+        id: savedSlideId,
+        name: slide.name || 'Saved Slide',
+        slide: JSON.parse(JSON.stringify(slide)),
+        savedAt: new Date().toISOString(),
+        sourceProject: projectNameRef.current || ''
+      };
 
-    const updatedIndex = [indexEntry, ...savedSlides];
-    setSavedSlides(updatedIndex);
+      const updatedIndex = [indexEntry, ...savedSlides];
+      setSavedSlides(updatedIndex);
 
-    await Promise.all([
-      fetch('/api/storage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: 'saved-slides/index.json', data: updatedIndex })
-      }),
-      fetch('/api/storage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: `saved-slides/${savedSlideId}.json`, data: savedSlideData })
-      })
-    ]);
+      await Promise.all([
+        fetch('/api/storage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: 'saved-slides/index.json', data: updatedIndex })
+        }),
+        fetch('/api/storage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: `saved-slides/${savedSlideId}.json`, data: savedSlideData })
+        })
+      ]);
+
+      setSavingSlide('saved');
+      setTimeout(() => setSavingSlide(false), 2000);
+    } catch (err) {
+      console.error('Error saving slide:', err);
+      setSavingSlide(false);
+    }
   };
 
   const insertSavedSlide = async (savedSlideId) => {
@@ -5350,6 +5360,7 @@ ${imageGenInstructions}`;
                   setShowCaseStudyLibrary(true);
                 }}
                 onSaveSlide={saveCurrentSlide}
+                savingSlide={savingSlide}
               />
             ) : (
               <EmptyState
@@ -5997,7 +6008,7 @@ function MobileEditorPanel({ selectedElement, slide, onUpdateElement, onUpdateBa
 // SLIDE EDITOR (Canvas)
 // ============================================
 // EXPIRATION MODAL
-function SlideEditor({ slide, slideIndex, totalSlides, selectedElementIds, onSelectElement, onUpdateElement, onUpdateMultipleElements, onDeleteElement, onNavigate, onAddSlide, onDeleteSlide, isMobile, onMobileEdit, onDropImage, onOpenCropper, editingBackground, onUpdateBackground, editingMode, onInsertCaseStudy, onSaveSlide }) {
+function SlideEditor({ slide, slideIndex, totalSlides, selectedElementIds, onSelectElement, onUpdateElement, onUpdateMultipleElements, onDeleteElement, onNavigate, onAddSlide, onDeleteSlide, isMobile, onMobileEdit, onDropImage, onOpenCropper, editingBackground, onUpdateBackground, editingMode, onInsertCaseStudy, onSaveSlide, savingSlide }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const [scale, setScale] = useState(1);
@@ -6733,8 +6744,24 @@ function SlideEditor({ slide, slideIndex, totalSlides, selectedElementIds, onSel
                 </button>
               )}
               {onSaveSlide && (
-                <button onClick={onSaveSlide} className="px-2.5 py-1.5 bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800/60 hover:border-zinc-700 rounded-md text-zinc-300 text-[11px] flex items-center gap-1.5 transition-all group btn-interactive press-effect">
-                  <Star className="w-3 h-3 text-zinc-500 group-hover:text-amber-400 transition-colors" /> Save Slide
+                <button
+                  onClick={onSaveSlide}
+                  disabled={savingSlide === 'saving'}
+                  className={`px-2.5 py-1.5 border rounded-md text-[11px] flex items-center gap-1.5 transition-all btn-interactive press-effect ${
+                    savingSlide === 'saved'
+                      ? 'bg-emerald-900/40 border-emerald-700/50 text-emerald-300'
+                      : savingSlide === 'saving'
+                      ? 'bg-zinc-900/60 border-zinc-800/60 text-zinc-400 cursor-wait'
+                      : 'bg-zinc-900/60 hover:bg-zinc-800/80 border-zinc-800/60 hover:border-zinc-700 text-zinc-300 group'
+                  }`}
+                >
+                  {savingSlide === 'saved' ? (
+                    <><Check className="w-3 h-3 text-emerald-400" /> Saved!</>
+                  ) : savingSlide === 'saving' ? (
+                    <><RefreshCw className="w-3 h-3 animate-spin" /> Saving...</>
+                  ) : (
+                    <><Star className="w-3 h-3 text-zinc-500 group-hover:text-amber-400 transition-colors" /> Save Slide</>
+                  )}
                 </button>
               )}
               {totalSlides > 1 && (
