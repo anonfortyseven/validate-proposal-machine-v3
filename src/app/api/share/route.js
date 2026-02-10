@@ -156,7 +156,7 @@ export async function POST(request) {
     }
 
     // Create new share
-    const { projectId, projectName, clientName, slides, password, expiresInDays, contactName, contactEmail, contactPhone } = body;
+    const { projectId, projectName, clientName, slides, password, expiresInDays, contactName, contactEmail, contactPhone, allowPdfDownload } = body;
 
     if (!slides || !Array.isArray(slides)) {
       return NextResponse.json({ error: 'Slides array required' }, { status: 400 });
@@ -178,6 +178,7 @@ export async function POST(request) {
       contactName: contactName || '',
       contactEmail: contactEmail || '',
       contactPhone: contactPhone || '',
+      allowPdfDownload: allowPdfDownload !== false,
       slides
     };
 

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react';
-import { X, Link2, RefreshCw, Check, Copy, Lock, Clock, AlertCircle, User, Shield, Share2 } from 'lucide-react';
+import { X, Link2, RefreshCw, Check, Copy, Lock, Clock, AlertCircle, User, Shield, Share2, FileDown } from 'lucide-react';
 
 export default function ShareModal({ projectName, clientName, slides, contactName, contactEmail, contactPhone, onContactNameChange, onContactEmailChange, onContactPhoneChange, onClose }) {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -10,6 +10,7 @@ export default function ShareModal({ projectName, clientName, slides, contactNam
   const [usePassword, setUsePassword] = useState(false);
   const [password, setPassword] = useState('');
   const [expiresInDays, setExpiresInDays] = useState(null);
+  const [allowPdfDownload, setAllowPdfDownload] = useState(true);
   const [error, setError] = useState(null);
 
   const generateShareLink = async () => {
@@ -35,7 +36,8 @@ export default function ShareModal({ projectName, clientName, slides, contactNam
           expiresInDays,
           contactName: contactName || '',
           contactEmail: contactEmail || '',
-          contactPhone: contactPhone || ''
+          contactPhone: contactPhone || '',
+          allowPdfDownload
         })
       });
 
@@ -144,6 +146,7 @@ export default function ShareModal({ projectName, clientName, slides, contactNam
                   setPassword('');
                   setUsePassword(false);
                   setExpiresInDays(null);
+                  setAllowPdfDownload(true);
                 }}
                 className="flex-1 py-2.5 bg-surface-hover hover:bg-surface-active text-text-secondary hover:text-text-primary rounded-xl text-sm font-medium transition-all"
               >
@@ -300,6 +303,31 @@ export default function ShareModal({ projectName, clientName, slides, contactNam
                 ))}
               </div>
             </div>
+
+            {/* PDF Download Toggle */}
+            <button
+              onClick={() => setAllowPdfDownload(!allowPdfDownload)}
+              className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all ${
+                allowPdfDownload
+                  ? 'bg-accent-subtle border-accent/30'
+                  : 'bg-bg-tertiary border-border hover:border-border-strong'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${allowPdfDownload ? 'bg-accent/20' : 'bg-surface-hover'}`}>
+                  <FileDown className={`w-5 h-5 ${allowPdfDownload ? 'text-accent' : 'text-text-tertiary'}`} />
+                </div>
+                <div className="text-left">
+                  <p className={`text-sm font-medium ${allowPdfDownload ? 'text-accent' : 'text-text-primary'}`}>PDF Download</p>
+                  <p className="text-xs text-text-muted">Allow viewers to download as PDF</p>
+                </div>
+              </div>
+              <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                allowPdfDownload ? 'bg-accent border-accent' : 'border-text-muted'
+              }`}>
+                {allowPdfDownload && <Check className="w-3.5 h-3.5 text-white" />}
+              </div>
+            </button>
           </div>
 
           {/* Error */}

@@ -1233,23 +1233,25 @@ function EndCard({ shareData, onDownloadPdf, isExporting, exportProgress }) {
         </div>
 
         {/* Download button */}
-        <button
-          onClick={onDownloadPdf}
-          disabled={isExporting}
-          className="inline-flex items-center gap-2.5 px-6 py-3.5 bg-accent hover:bg-accent-secondary disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-all duration-200 hover:shadow-glow"
-        >
-          {isExporting ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span>Exporting {exportProgress.current}/{exportProgress.total}...</span>
-            </>
-          ) : (
-            <>
-              <Download className="w-5 h-5" />
-              <span>Download PDF</span>
-            </>
-          )}
-        </button>
+        {shareData.allowPdfDownload !== false && (
+          <button
+            onClick={onDownloadPdf}
+            disabled={isExporting}
+            className="inline-flex items-center gap-2.5 px-6 py-3.5 bg-accent hover:bg-accent-secondary disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-all duration-200 hover:shadow-glow"
+          >
+            {isExporting ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Exporting {exportProgress.current}/{exportProgress.total}...</span>
+              </>
+            ) : (
+              <>
+                <Download className="w-5 h-5" />
+                <span>Download PDF</span>
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       {/* VALIDATE branding */}
