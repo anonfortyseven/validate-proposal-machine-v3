@@ -1203,17 +1203,6 @@ function EndCard({ shareData, onDownloadPdf, isExporting, exportProgress }) {
       }}
     >
       <div className="inline-block p-10 bg-bg-secondary/80 backdrop-blur-md border border-border rounded-2xl max-w-md">
-        {/* Thank You Header */}
-        <div className="mb-8">
-          <h2
-            className="text-4xl text-text-primary tracking-wider mb-3"
-            style={{ fontFamily: "'Bebas Neue', sans-serif" }}
-          >
-            THANK YOU
-          </h2>
-          <div className="w-16 h-1 bg-accent rounded-full mx-auto" />
-        </div>
-
         <p className="text-text-secondary text-sm mb-8">
           Please reach out to discuss next steps.
         </p>

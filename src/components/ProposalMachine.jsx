@@ -2298,20 +2298,6 @@ export default function ValidateProposalMachine() {
             font-family: 'Inter', sans-serif;
           `;
 
-          const headerEl = document.createElement('div');
-          headerEl.style.cssText = `
-            color: #FFFFFF;
-            font-size: 22px;
-            line-height: 26px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            margin-bottom: 6px;
-            font-family: 'Bebas Neue', sans-serif;
-          `;
-          headerEl.innerText = "THANK YOU";
-          contactContainer.appendChild(headerEl);
-
           const subtitleEl = document.createElement('div');
           subtitleEl.style.cssText = `
             color: #FFFFFF;
