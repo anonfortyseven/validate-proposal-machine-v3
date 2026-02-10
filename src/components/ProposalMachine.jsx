@@ -8623,26 +8623,33 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
         if (isHeic) {
           processedFile = await convertHeic(file);
         } else if (isTiff) {
-          // TIFF: load into canvas to convert to JPEG (browsers may not display TIFF natively)
-          processedFile = await new Promise((resolve) => {
-            const img = new window.Image();
-            const url = URL.createObjectURL(file);
-            img.onload = () => {
-              URL.revokeObjectURL(url);
+          // TIFF: decode with utif2 since browsers can't render TIFF natively
+          processedFile = await (async () => {
+            try {
+              const UTIF = (await import('utif2')).default;
+              const buf = await file.arrayBuffer();
+              const ifds = UTIF.decode(buf);
+              UTIF.decodeImage(buf, ifds[0]);
+              const rgba = UTIF.toRGBA8(ifds[0]);
+              const w = ifds[0].width;
+              const h = ifds[0].height;
               const canvas = document.createElement('canvas');
-              canvas.width = img.width;
-              canvas.height = img.height;
-              canvas.getContext('2d').drawImage(img, 0, 0);
-              canvas.toBlob((blob) => {
-                resolve(new File([blob], file.name.replace(/\.tiff?$/i, '.jpg'), { type: 'image/jpeg' }));
-              }, 'image/jpeg', 0.9);
-            };
-            img.onerror = () => {
-              URL.revokeObjectURL(url);
-              resolve(file);
-            };
-            img.src = url;
-          });
+              canvas.width = w;
+              canvas.height = h;
+              const ctx = canvas.getContext('2d');
+              const imgData = ctx.createImageData(w, h);
+              imgData.data.set(new Uint8Array(rgba));
+              ctx.putImageData(imgData, 0, 0);
+              return await new Promise((resolve) => {
+                canvas.toBlob((blob) => {
+                  resolve(new File([blob], file.name.replace(/\.tiff?$/i, '.jpg'), { type: 'image/jpeg' }));
+                }, 'image/jpeg', 0.9);
+              });
+            } catch (err) {
+              console.error('TIFF conversion failed:', err);
+              return file;
+            }
+          })();
         }
         const uploadFile = isImage ? await resizeImage(processedFile) : file;
 
