@@ -8522,8 +8522,51 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
     }
   };
 
-  // Max file size: 200MB
-  const MAX_FILE_SIZE = 200 * 1024 * 1024;
+  // Max file size: 100MB
+  const MAX_FILE_SIZE = 100 * 1024 * 1024;
+  const MAX_IMAGE_DIMENSION = 2000; // Resize images to max 2000px on longest side
+
+  // Resize an image file to a reasonable size using canvas
+  const resizeImage = (file) => new Promise((resolve) => {
+    // Skip SVGs and GIFs (they don't resize well / may be animated)
+    if (file.type === 'image/svg+xml' || file.type === 'image/gif') {
+      resolve(file);
+      return;
+    }
+
+    const img = new window.Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const { width, height } = img;
+
+      // Skip if already small enough
+      if (width <= MAX_IMAGE_DIMENSION && height <= MAX_IMAGE_DIMENSION) {
+        resolve(file);
+        return;
+      }
+
+      const scale = MAX_IMAGE_DIMENSION / Math.max(width, height);
+      const newW = Math.round(width * scale);
+      const newH = Math.round(height * scale);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = newW;
+      canvas.height = newH;
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, newW, newH);
+
+      canvas.toBlob((blob) => {
+        resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+      }, 'image/jpeg', 0.85);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(file); // Fall back to original on error
+    };
+    img.src = url;
+  });
 
   const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files);
@@ -8543,7 +8586,7 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
       if (!isImage && !isVideo) return false;
       if (file.size > MAX_FILE_SIZE) {
         const sizeMB = Math.round(file.size / 1024 / 1024);
-        setStorageError(`File "${file.name}" is too large (${sizeMB}MB). Maximum size is 200MB.`);
+        setStorageError(`File "${file.name}" is too large (${sizeMB}MB). Maximum size is 100MB.`);
         return false;
       }
       return true;
@@ -8558,47 +8601,52 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
       const batch = validFiles.slice(i, i + CONCURRENCY);
       const results = await Promise.allSettled(batch.map(async (file) => {
         const isVideo = videoTypes.includes(file.type);
-        const ext = file.name.split('.').pop();
+        const isImage = !isVideo;
+
+        // Resize images before uploading
+        const uploadFile = isImage ? await resizeImage(file) : file;
+
+        const ext = isImage ? 'jpg' : file.name.split('.').pop();
         const prefix = isVideo ? 'videos/' : '';
         const filename = `${prefix}${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${ext}`;
 
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('filename', filename);
-
-        const response = await fetch('/api/storage/upload/', {
-          method: 'POST',
-          body: formData
+        // Get a signed upload URL from our server
+        const signRes = await fetch('/api/storage/upload/', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename, contentType: uploadFile.type })
         });
 
-        // Handle non-JSON responses (e.g. Vercel 413 "Request Entity Too Large")
-        const contentType = response.headers.get('content-type') || '';
-        if (!contentType.includes('application/json')) {
-          const text = await response.text();
-          throw new Error(response.status === 413
-            ? `"${file.name}" is too large for the server (${Math.round(file.size / 1024 / 1024)}MB). Try a smaller file.`
-            : `Upload failed for "${file.name}" (${response.status})`);
+        if (!signRes.ok) {
+          const errData = await signRes.json().catch(() => ({}));
+          throw new Error(errData.error || `Failed to prepare upload for "${file.name}"`);
         }
 
-        const result = await response.json();
+        const { signedUrl, publicUrl } = await signRes.json();
 
-        if (response.ok && result.success) {
-          return {
-            id: filename,
-            name: file.name,
-            folderId: currentFolder,
-            path: filename,
-            url: getPublicUrl(filename),
-            thumbnail: getPublicUrl(filename),
-            createdAt: new Date().toISOString(),
-            size: file.size,
-            isVideo: isVideo
-          };
-        } else {
-          throw new Error(response.status === 413
-            ? `"${file.name}" is too large for the server.`
-            : result.error || `Upload failed for "${file.name}"`);
+        // Upload directly to Supabase (bypasses Vercel body limit)
+        const uploadRes = await fetch(signedUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': uploadFile.type },
+          body: uploadFile
+        });
+
+        if (!uploadRes.ok) {
+          const errText = await uploadRes.text().catch(() => '');
+          throw new Error(`Upload failed for "${file.name}" (${uploadRes.status})`);
         }
+
+        return {
+          id: filename,
+          name: file.name,
+          folderId: currentFolder,
+          path: filename,
+          url: publicUrl,
+          thumbnail: publicUrl,
+          createdAt: new Date().toISOString(),
+          size: uploadFile.size,
+          isVideo: isVideo
+        };
       }));
 
       for (const result of results) {

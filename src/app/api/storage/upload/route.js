@@ -88,6 +88,46 @@ export async function POST(request) {
   }
 }
 
+// PUT - Create a signed upload URL so the client can upload directly to Supabase
+export async function PUT(request) {
+  try {
+    const { filename, contentType } = await request.json();
+
+    if (!filename) {
+      return NextResponse.json({ error: 'Filename required' }, { status: 400 });
+    }
+
+    const response = await fetch(
+      `${SUPABASE_URL}/storage/v1/object/upload/sign/${IMAGES_BUCKET}/${filename}`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ upsert: true })
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Signed URL error:', errorText);
+      return NextResponse.json({ error: 'Failed to create upload URL' }, { status: 500 });
+    }
+
+    const data = await response.json();
+    // Supabase returns { url: "/object/upload/sign/bucket/path?token=xxx" }
+    const signedUrl = `${SUPABASE_URL}/storage/v1${data.url}`;
+    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${IMAGES_BUCKET}/${filename}`;
+
+    return NextResponse.json({ signedUrl, publicUrl, path: filename });
+  } catch (e) {
+    console.error('Signed URL error:', e);
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
+
 // DELETE - Delete file from Supabase Storage
 export async function DELETE(request) {
   try {
