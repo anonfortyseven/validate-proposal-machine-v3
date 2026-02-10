@@ -1433,6 +1433,73 @@ export default function ProposalViewer({ share, hasPassword, shareId }) {
         const originalTransform = canvasEl.style.transform;
         canvasEl.style.transform = 'none';
 
+        // Add contact info overlay on last slide
+        const isLastSlide = i === slides.length - 1;
+        const hasContactInfo = shareData.contactName || shareData.contactEmail || shareData.contactPhone;
+        let contactOverlay = null;
+
+        if (isLastSlide && hasContactInfo) {
+          contactOverlay = document.createElement('div');
+          contactOverlay.style.cssText = `
+            position: absolute;
+            bottom: 50px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            z-index: 9999;
+            -webkit-font-smoothing: antialiased;
+          `;
+
+          const subtitleEl = document.createElement('div');
+          subtitleEl.style.cssText = `
+            color: #D4D4D8;
+            font-size: 13px;
+            line-height: 1.4;
+            font-weight: 400;
+            font-family: 'Inter', sans-serif;
+            letter-spacing: 0;
+            margin-bottom: 16px;
+          `;
+          subtitleEl.innerText = 'Please reach out to discuss next steps.';
+          contactOverlay.appendChild(subtitleEl);
+
+          if (shareData.contactName) {
+            const nameEl = document.createElement('div');
+            nameEl.style.cssText = `
+              color: #FFFFFF;
+              font-size: 20px;
+              line-height: 1.2;
+              font-weight: 400;
+              font-family: 'Bebas Neue', sans-serif;
+              letter-spacing: 0.05em;
+              text-transform: uppercase;
+              margin-bottom: 6px;
+            `;
+            nameEl.innerText = shareData.contactName;
+            contactOverlay.appendChild(nameEl);
+          }
+
+          const parts = [];
+          if (shareData.contactEmail) parts.push(shareData.contactEmail.toUpperCase());
+          if (shareData.contactPhone) parts.push(shareData.contactPhone);
+
+          if (parts.length > 0) {
+            const detailsEl = document.createElement('div');
+            detailsEl.style.cssText = `
+              color: #A1A1AA;
+              font-size: 9px;
+              line-height: 1.4;
+              font-weight: 500;
+              font-family: 'JetBrains Mono', monospace;
+              letter-spacing: 0.05em;
+            `;
+            detailsEl.innerText = parts.join('  ·  ');
+            contactOverlay.appendChild(detailsEl);
+          }
+
+          canvasEl.appendChild(contactOverlay);
+        }
+
         // Wait a frame for the layout to update
         await new Promise(resolve => requestAnimationFrame(resolve));
         await new Promise(resolve => setTimeout(resolve, 50));
@@ -1450,7 +1517,8 @@ export default function ProposalViewer({ share, hasPassword, shareId }) {
           logging: false,
         });
 
-        // Restore the original transform
+        // Clean up contact overlay and restore transform
+        if (contactOverlay) canvasEl.removeChild(contactOverlay);
         canvasEl.style.transform = originalTransform;
 
         const imgData = canvas.toDataURL('image/jpeg', 0.95);
@@ -1462,6 +1530,21 @@ export default function ProposalViewer({ share, hasPassword, shareId }) {
         // Add links for this slide
         const pdfScaleX = pdfWidth / OUTPUT_W;
         const pdfScaleY = pdfHeight / OUTPUT_H;
+
+        // Add clickable mailto link on last slide
+        if (isLastSlide && shareData.contactEmail) {
+          const emailY = (CANVAS_HEIGHT - 50 - 10) * captureScale; // near bottom
+          const emailHeight = 30 * captureScale;
+          const emailWidth = shareData.contactEmail.length * 8 * captureScale;
+          const emailX = (OUTPUT_W - emailWidth) / 2;
+          pdf.link(
+            emailX * pdfScaleX,
+            emailY * pdfScaleY,
+            emailWidth * pdfScaleX,
+            emailHeight * pdfScaleY,
+            { url: `mailto:${shareData.contactEmail}` }
+          );
+        }
 
         for (const element of slide.elements) {
           // Text hyperlinks

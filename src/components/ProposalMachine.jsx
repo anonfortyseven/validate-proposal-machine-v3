@@ -2291,20 +2291,22 @@ export default function ValidateProposalMachine() {
           const contactContainer = document.createElement('div');
           contactContainer.style.cssText = `
             position: absolute;
-            bottom: 56px;
-            left: 50%;
-            transform: translateX(-50%);
+            bottom: 50px;
+            left: 0;
+            right: 0;
             text-align: center;
-            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
           `;
 
           const subtitleEl = document.createElement('div');
           subtitleEl.style.cssText = `
-            color: #FFFFFF;
-            font-size: 11px;
-            line-height: 13px;
-            font-weight: 500;
-            margin-bottom: 15px;
+            color: #D4D4D8;
+            font-size: 13px;
+            line-height: 1.4;
+            font-weight: 400;
+            font-family: 'Inter', sans-serif;
+            letter-spacing: 0;
+            margin-bottom: 16px;
           `;
           subtitleEl.innerText = "Please reach out to discuss next steps.";
           contactContainer.appendChild(subtitleEl);
@@ -2313,28 +2315,33 @@ export default function ValidateProposalMachine() {
             const nameEl = document.createElement('div');
             nameEl.style.cssText = `
               color: #FFFFFF;
-              font-size: 15px;
-              line-height: 18px;
-              font-weight: 600;
-              margin-bottom: 8px;
+              font-size: 20px;
+              line-height: 1.2;
+              font-weight: 400;
+              font-family: 'Bebas Neue', sans-serif;
+              letter-spacing: 0.05em;
+              text-transform: uppercase;
+              margin-bottom: 6px;
             `;
             nameEl.innerText = contactName;
             contactContainer.appendChild(nameEl);
           }
 
-          const contactDetailsEl = document.createElement('div');
-          contactDetailsEl.style.cssText = `
-            color: #FFFFFF;
-            font-size: 10px;
-            line-height: 12px;
-          `;
-
           const parts = [];
-          if (contactEmail) parts.push(contactEmail);
+          if (contactEmail) parts.push(contactEmail.toUpperCase());
           if (contactPhone) parts.push(contactPhone);
-          contactDetailsEl.innerText = parts.join('   ·   ');
 
           if (parts.length > 0) {
+            const contactDetailsEl = document.createElement('div');
+            contactDetailsEl.style.cssText = `
+              color: #A1A1AA;
+              font-size: 9px;
+              line-height: 1.4;
+              font-weight: 500;
+              font-family: 'JetBrains Mono', monospace;
+              letter-spacing: 0.05em;
+            `;
+            contactDetailsEl.innerText = parts.join('  ·  ');
             contactContainer.appendChild(contactDetailsEl);
           }
 
