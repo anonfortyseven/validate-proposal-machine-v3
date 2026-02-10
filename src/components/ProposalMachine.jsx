@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, Sparkles, Send, RefreshCw, Plus, ArrowLeft, X, AlertCircle, Type, Image, Trash2, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Upload, Check, Cloud, Save, FolderOpen, Folder, Clock, Undo2, Redo2, Archive, ArchiveRestore, Eye, EyeOff, Menu, Edit3, FolderPlus, Download, MoreVertical, Grid, List, Search, ImageIcon, Move, Crop, ZoomIn, ZoomOut, Play, Video, FileDown, Link2, Copy, Lock, LogOut, Share2, User, Shield } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Sparkles, Send, RefreshCw, Plus, ArrowLeft, X, AlertCircle, Type, Image, Trash2, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Upload, Check, Cloud, Save, FolderOpen, Folder, Clock, Undo2, Redo2, Archive, ArchiveRestore, Eye, EyeOff, Menu, Edit3, FolderPlus, Download, MoreVertical, Grid, List, Search, ImageIcon, Move, Crop, ZoomIn, ZoomOut, Play, Video, FileDown, Link2, Copy, Lock, LogOut, Share2, User, Shield, Star } from 'lucide-react';
 import { useAuth } from './LoginGate';
 import ShareModal from './ShareModal';
 import { BRAND_GUIDELINES, BRAND_GUIDELINES_SHORT, COLORS as BRAND_COLORS, TYPOGRAPHY, FONTS } from '../config/brandGuidelines';
@@ -1039,6 +1039,10 @@ export default function ValidateProposalMachine() {
   const [editingMode, setEditingMode] = useState(null); // 'proposal' | 'caseStudy' | null
   const [currentCaseStudyId, setCurrentCaseStudyId] = useState(null);
 
+  // Saved Slides (Favorites) state
+  const [savedSlides, setSavedSlides] = useState([]);
+  const [showSavedSlidesLibrary, setShowSavedSlidesLibrary] = useState(false);
+
   // Share state
   const [showShareModal, setShowShareModal] = useState(false);
 
@@ -1357,6 +1361,24 @@ export default function ValidateProposalMachine() {
       }
     };
     loadCaseStudies();
+  }, []);
+
+  // Load saved slides index on mount
+  useEffect(() => {
+    const loadSavedSlidesIndex = async () => {
+      try {
+        const response = await fetch(`/api/storage?path=${encodeURIComponent('saved-slides/index.json')}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data && Array.isArray(data)) {
+            setSavedSlides(data);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load saved slides:', err);
+      }
+    };
+    loadSavedSlidesIndex();
   }, []);
 
   // Load image library on mount for AI chat access
@@ -3291,6 +3313,181 @@ Return complete slide layouts as JSON with { "slides": [...] } format.`;
     }
   };
 
+  // ============================================
+  // SAVED SLIDES (Favorites) Functions
+  // ============================================
+
+  const generateSlideThumbnail = async (slide) => {
+    const container = document.createElement('div');
+    container.style.cssText = `position:fixed;left:-9999px;top:0;width:${CANVAS_WIDTH}px;height:${CANVAS_HEIGHT}px;background:#000;overflow:hidden;`;
+    document.body.appendChild(container);
+
+    const slideEl = document.createElement('div');
+    slideEl.style.cssText = `width:${CANVAS_WIDTH}px;height:${CANVAS_HEIGHT}px;background:${slide.background?.color || '#000000'};position:relative;font-family:'Inter',sans-serif;`;
+
+    if (slide.background?.image) {
+      const bgImg = document.createElement('img');
+      bgImg.src = slide.background.image;
+      bgImg.crossOrigin = 'anonymous';
+      bgImg.style.cssText = `position:absolute;left:${slide.background.x || 0}px;top:${slide.background.y || 0}px;width:${slide.background.width || CANVAS_WIDTH}px;height:${slide.background.height || CANVAS_HEIGHT}px;object-fit:cover;opacity:${slide.background.opacity ?? 1};`;
+      slideEl.appendChild(bgImg);
+    }
+
+    for (const el of slide.elements) {
+      if (el.type === 'text') {
+        const textEl = document.createElement('div');
+        textEl.style.cssText = `position:absolute;left:${el.x}px;top:${el.y}px;width:${el.width}px;height:${el.height}px;font-size:${el.fontSize || 16}px;font-family:${el.fontFamily || 'Inter'},sans-serif;font-weight:${el.fontWeight || 'normal'};color:${el.color || '#FFFFFF'};text-align:${el.align || 'left'};line-height:1.3;overflow:hidden;`;
+        textEl.innerText = el.content || '';
+        slideEl.appendChild(textEl);
+      } else if (el.type === 'image' && el.src) {
+        const imgEl = document.createElement('img');
+        imgEl.src = el.src;
+        imgEl.crossOrigin = 'anonymous';
+        imgEl.style.cssText = `position:absolute;left:${el.x}px;top:${el.y}px;width:${el.width}px;height:${el.height}px;object-fit:cover;border-radius:${el.frameStyle === 'rounded' ? '8px' : '0'};`;
+        slideEl.appendChild(imgEl);
+      } else if (el.type === 'shape') {
+        const shapeEl = document.createElement('div');
+        shapeEl.style.cssText = `position:absolute;left:${el.x}px;top:${el.y}px;width:${el.width}px;height:${el.height}px;background:${el.color || '#C41E3A'};border-radius:${el.shapeType === 'ellipse' ? '50%' : (el.borderRadius || 0) + 'px'};`;
+        slideEl.appendChild(shapeEl);
+      }
+    }
+
+    container.appendChild(slideEl);
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    try {
+      const canvas = await html2canvas(slideEl, {
+        width: CANVAS_WIDTH,
+        height: CANVAS_HEIGHT,
+        scale: 200 / CANVAS_WIDTH,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#000000',
+        logging: false
+      });
+      const thumbnail = canvas.toDataURL('image/jpeg', 0.6);
+      document.body.removeChild(container);
+      return thumbnail;
+    } catch (err) {
+      console.error('Thumbnail capture failed:', err);
+      document.body.removeChild(container);
+      return null;
+    }
+  };
+
+  const saveCurrentSlide = async () => {
+    const slide = slidesRef.current[currentSlideIndex];
+    if (!slide) return;
+
+    const savedSlideId = `ss-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const thumbnail = await generateSlideThumbnail(slide);
+
+    const indexEntry = {
+      id: savedSlideId,
+      name: slide.name || 'Saved Slide',
+      thumbnail,
+      createdAt: new Date().toISOString(),
+      sourceProject: projectNameRef.current || ''
+    };
+
+    const savedSlideData = {
+      id: savedSlideId,
+      name: slide.name || 'Saved Slide',
+      slide: JSON.parse(JSON.stringify(slide)),
+      savedAt: new Date().toISOString(),
+      sourceProject: projectNameRef.current || ''
+    };
+
+    const updatedIndex = [indexEntry, ...savedSlides];
+    setSavedSlides(updatedIndex);
+
+    await Promise.all([
+      fetch('/api/storage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: 'saved-slides/index.json', data: updatedIndex })
+      }),
+      fetch('/api/storage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: `saved-slides/${savedSlideId}.json`, data: savedSlideData })
+      })
+    ]);
+  };
+
+  const insertSavedSlide = async (savedSlideId) => {
+    try {
+      const response = await fetch(`/api/storage?path=${encodeURIComponent(`saved-slides/${savedSlideId}.json`)}`);
+      if (!response.ok) return;
+      const savedSlideData = await response.json();
+      if (!savedSlideData?.slide) return;
+
+      const insertIndex = currentSlideIndex + 1;
+      const clonedSlide = {
+        ...savedSlideData.slide,
+        id: generateSlideId(),
+        elements: savedSlideData.slide.elements.map(el => ({
+          ...el,
+          id: generateElementId()
+        }))
+      };
+
+      updateSlides(prev => [
+        ...prev.slice(0, insertIndex),
+        clonedSlide,
+        ...prev.slice(insertIndex)
+      ]);
+      setCurrentSlideIndex(insertIndex);
+      setSelectedElementIds([]);
+    } catch (err) {
+      console.error('Error inserting saved slide:', err);
+    }
+  };
+
+  const deleteSavedSlide = async (savedSlideId) => {
+    const updatedIndex = savedSlides.filter(ss => ss.id !== savedSlideId);
+    setSavedSlides(updatedIndex);
+
+    await fetch('/api/storage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: 'saved-slides/index.json', data: updatedIndex })
+    });
+
+    fetch(`/api/storage?path=${encodeURIComponent(`saved-slides/${savedSlideId}.json`)}`, {
+      method: 'DELETE'
+    });
+  };
+
+  const renameSavedSlide = async (savedSlideId, newName) => {
+    const updatedIndex = savedSlides.map(ss =>
+      ss.id === savedSlideId ? { ...ss, name: newName } : ss
+    );
+    setSavedSlides(updatedIndex);
+
+    await fetch('/api/storage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: 'saved-slides/index.json', data: updatedIndex })
+    });
+
+    // Also update the individual file
+    try {
+      const response = await fetch(`/api/storage?path=${encodeURIComponent(`saved-slides/${savedSlideId}.json`)}`);
+      if (response.ok) {
+        const data = await response.json();
+        data.name = newName;
+        await fetch('/api/storage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: `saved-slides/${savedSlideId}.json`, data })
+        });
+      }
+    } catch (err) {
+      console.error('Error renaming saved slide:', err);
+    }
+  };
+
   const handleRefine = async (message) => {
     if (!slides.length || isRefining) return;
     
@@ -4884,6 +5081,7 @@ ${imageGenInstructions}`;
           setImagePickerMode('element');
           setShowImageLibrary(true);
         }}
+        onShowSavedSlides={() => setShowSavedSlidesLibrary(true)}
         onUndo={undo}
         onRedo={redo}
         canUndo={canUndo}
@@ -4995,6 +5193,21 @@ ${imageGenInstructions}`;
           onDuplicate={duplicateCaseStudy}
           onClose={() => setShowCaseStudyLibrary(false)}
           mode={caseStudyLibraryMode}
+          editingMode={editingMode}
+        />
+      )}
+
+      {/* Saved Slides Library Modal */}
+      {showSavedSlidesLibrary && (
+        <SavedSlidesLibraryModal
+          savedSlides={savedSlides}
+          onInsert={(ssId) => {
+            insertSavedSlide(ssId);
+            setShowSavedSlidesLibrary(false);
+          }}
+          onDelete={deleteSavedSlide}
+          onRename={renameSavedSlide}
+          onClose={() => setShowSavedSlidesLibrary(false)}
           editingMode={editingMode}
         />
       )}
@@ -5136,6 +5349,7 @@ ${imageGenInstructions}`;
                   setCaseStudyLibraryMode('insert');
                   setShowCaseStudyLibrary(true);
                 }}
+                onSaveSlide={saveCurrentSlide}
               />
             ) : (
               <EmptyState
@@ -5202,7 +5416,7 @@ ${imageGenInstructions}`;
 // HEADER - Cinematic Editorial Design
 // ============================================
 // EXPIRATION MODAL
-function Header({ onNew, hasProposal, saveStatus, projectName, onProjectNameChange, onShowProjects, onShowCaseStudies, onShowSaveAs, onShowImageLibrary, onUndo, onRedo, canUndo, canRedo, isMobile, onMobileInput, onExportPdf, isExporting, exportProgress, editingMode, onShare, onSetExpiration, expirationDays }) {
+function Header({ onNew, hasProposal, saveStatus, projectName, onProjectNameChange, onShowProjects, onShowCaseStudies, onShowSaveAs, onShowImageLibrary, onShowSavedSlides, onUndo, onRedo, canUndo, canRedo, isMobile, onMobileInput, onExportPdf, isExporting, exportProgress, editingMode, onShare, onSetExpiration, expirationDays }) {
   const auth = useAuth();
 
   if (isMobile) {
@@ -5225,6 +5439,9 @@ function Header({ onNew, hasProposal, saveStatus, projectName, onProjectNameChan
           </button>
           <button onClick={onShowCaseStudies} className="p-2.5 bg-bg-tertiary border border-border rounded-lg hover:border-border-strong transition-all" title="Case Studies">
             <Folder className="w-4 h-4 text-text-tertiary" />
+          </button>
+          <button onClick={onShowSavedSlides} className="p-2.5 bg-bg-tertiary border border-border rounded-lg hover:border-border-strong transition-all" title="Saved Slides">
+            <Star className="w-4 h-4 text-text-tertiary" />
           </button>
           {hasProposal && (
             <>
@@ -5317,6 +5534,11 @@ function Header({ onNew, hasProposal, saveStatus, projectName, onProjectNameChan
           <button onClick={onShowCaseStudies} className="flex items-center gap-2 px-3 py-1.5 hover:bg-surface-hover rounded-lg text-sm group transition-colors">
             <Folder className="w-4 h-4 text-text-tertiary group-hover:text-text-secondary" />
             <span className="text-text-secondary group-hover:text-text-primary">Case Studies</span>
+          </button>
+
+          <button onClick={onShowSavedSlides} className="flex items-center gap-2 px-3 py-1.5 hover:bg-surface-hover rounded-lg text-sm group transition-colors">
+            <Star className="w-4 h-4 text-text-tertiary group-hover:text-amber-400" />
+            <span className="text-text-secondary group-hover:text-text-primary">Saved Slides</span>
           </button>
 
           <button onClick={onShowImageLibrary} className="flex items-center gap-2 px-3 py-1.5 hover:bg-surface-hover rounded-lg text-sm group transition-colors">
@@ -5775,7 +5997,7 @@ function MobileEditorPanel({ selectedElement, slide, onUpdateElement, onUpdateBa
 // SLIDE EDITOR (Canvas)
 // ============================================
 // EXPIRATION MODAL
-function SlideEditor({ slide, slideIndex, totalSlides, selectedElementIds, onSelectElement, onUpdateElement, onUpdateMultipleElements, onDeleteElement, onNavigate, onAddSlide, onDeleteSlide, isMobile, onMobileEdit, onDropImage, onOpenCropper, editingBackground, onUpdateBackground, editingMode, onInsertCaseStudy }) {
+function SlideEditor({ slide, slideIndex, totalSlides, selectedElementIds, onSelectElement, onUpdateElement, onUpdateMultipleElements, onDeleteElement, onNavigate, onAddSlide, onDeleteSlide, isMobile, onMobileEdit, onDropImage, onOpenCropper, editingBackground, onUpdateBackground, editingMode, onInsertCaseStudy, onSaveSlide }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const [scale, setScale] = useState(1);
@@ -6508,6 +6730,11 @@ function SlideEditor({ slide, slideIndex, totalSlides, selectedElementIds, onSel
               {editingMode === 'proposal' && onInsertCaseStudy && (
                 <button onClick={onInsertCaseStudy} className="px-2.5 py-1.5 bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800/60 hover:border-zinc-700 rounded-md text-zinc-300 text-[11px] flex items-center gap-1.5 transition-all group btn-interactive press-effect">
                   <Folder className="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-colors" /> Insert Case Study
+                </button>
+              )}
+              {onSaveSlide && (
+                <button onClick={onSaveSlide} className="px-2.5 py-1.5 bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800/60 hover:border-zinc-700 rounded-md text-zinc-300 text-[11px] flex items-center gap-1.5 transition-all group btn-interactive press-effect">
+                  <Star className="w-3 h-3 text-zinc-500 group-hover:text-amber-400 transition-colors" /> Save Slide
                 </button>
               )}
               {totalSlides > 1 && (
@@ -10143,6 +10370,207 @@ function CaseStudyLibraryModal({ caseStudies, onInsert, onEdit, onDelete, onDupl
               <h3 className="text-white font-display mb-2">DELETE CASE STUDY?</h3>
               <p className="text-sm text-zinc-400 mb-4">
                 "{confirmDelete.name}" will be permanently deleted. This cannot be undone.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConfirmDelete(null)}
+                  className="flex-1 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    onDelete(confirmDelete.id);
+                    setConfirmDelete(null);
+                  }}
+                  className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white rounded text-sm"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// SAVED SLIDES LIBRARY MODAL
+// ============================================
+function SavedSlidesLibraryModal({ savedSlides, onInsert, onDelete, onRename, onClose, editingMode }) {
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [editingName, setEditingName] = useState(null);
+  const [nameValue, setNameValue] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const canInsert = editingMode === 'proposal';
+
+  const filteredSlides = searchQuery
+    ? savedSlides.filter(ss =>
+        ss.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (ss.sourceProject || '').toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : savedSlides;
+
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-lg w-full max-w-2xl max-h-[80vh] flex flex-col relative" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Star className="w-5 h-5 text-amber-400" />
+            <h2 className="font-display text-xl text-white">SAVED SLIDES</h2>
+          </div>
+          <button onClick={onClose} className="p-1 hover:bg-zinc-800 rounded">
+            <X className="w-5 h-5 text-zinc-400" />
+          </button>
+        </div>
+
+        {/* Search bar */}
+        {savedSlides.length >= 5 && (
+          <div className="px-4 pt-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search saved slides..."
+                className="w-full pl-9 pr-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-sm text-white placeholder-zinc-500 focus:border-zinc-600 focus:outline-none"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Grid */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {filteredSlides.length === 0 ? (
+            <div className="text-center py-12 text-zinc-500">
+              <Star className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p className="text-sm">{searchQuery ? 'No matching slides' : 'No saved slides yet'}</p>
+              <p className="text-xs text-zinc-600 mt-1">
+                {searchQuery ? 'Try a different search' : 'Use "Save Slide" below the canvas to save slides here'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {filteredSlides.map((ss) => (
+                <div
+                  key={ss.id}
+                  className="rounded-lg bg-zinc-800/50 border border-zinc-700/50 hover:border-zinc-600 hover:bg-zinc-800/70 transition-colors group overflow-hidden"
+                >
+                  {/* Thumbnail */}
+                  <div className="aspect-video bg-black relative">
+                    {ss.thumbnail ? (
+                      <img src={ss.thumbnail} alt={ss.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                        <ImageIcon className="w-8 h-8" />
+                      </div>
+                    )}
+                    {/* Hover overlay with Insert */}
+                    {canInsert && (
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <button
+                          onClick={() => onInsert(ss.id)}
+                          className="px-4 py-2 bg-white text-black rounded text-xs font-display tracking-wider hover:bg-zinc-200 transition-colors"
+                        >
+                          INSERT
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Info */}
+                  <div className="p-2.5">
+                    {editingName === ss.id ? (
+                      <input
+                        type="text"
+                        value={nameValue}
+                        onChange={(e) => setNameValue(e.target.value)}
+                        onBlur={() => {
+                          if (nameValue.trim()) onRename(ss.id, nameValue.trim());
+                          setEditingName(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            if (nameValue.trim()) onRename(ss.id, nameValue.trim());
+                            setEditingName(null);
+                          }
+                          if (e.key === 'Escape') setEditingName(null);
+                        }}
+                        autoFocus
+                        className="w-full bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-zinc-500"
+                      />
+                    ) : (
+                      <h4
+                        className="text-white text-sm font-medium truncate cursor-pointer hover:text-zinc-300"
+                        onDoubleClick={() => {
+                          setEditingName(ss.id);
+                          setNameValue(ss.name);
+                        }}
+                        title="Double-click to rename"
+                      >
+                        {ss.name}
+                      </h4>
+                    )}
+                    <div className="flex items-center justify-between mt-1">
+                      <div className="flex items-center gap-2 text-xs text-zinc-500">
+                        <span>{formatDate(ss.createdAt)}</span>
+                        {ss.sourceProject && (
+                          <>
+                            <span className="text-zinc-700">·</span>
+                            <span className="truncate max-w-[120px]">{ss.sourceProject}</span>
+                          </>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => {
+                            setEditingName(ss.id);
+                            setNameValue(ss.name);
+                          }}
+                          className="p-1 hover:bg-zinc-700 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Rename"
+                        >
+                          <Edit3 className="w-3.5 h-3.5 text-zinc-400" />
+                        </button>
+                        <button
+                          onClick={() => setConfirmDelete(ss)}
+                          className="p-1 hover:bg-zinc-700 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-zinc-400" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Confirm Delete Dialog */}
+        {confirmDelete && (
+          <div className="absolute inset-0 bg-black/80 flex items-center justify-center p-4 rounded-lg">
+            <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-4 max-w-sm w-full">
+              <h3 className="text-white font-display mb-2">DELETE SAVED SLIDE?</h3>
+              <p className="text-sm text-zinc-400 mb-4">
+                "{confirmDelete.name}" will be permanently deleted.
               </p>
               <div className="flex gap-2">
                 <button
