@@ -8586,14 +8586,14 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
     setStorageError(null);
 
     // Supported file types
-    const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/heic', 'image/heif'];
+    const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/heic', 'image/heif', 'image/tiff'];
     const videoTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
-    const heicExtensions = ['.heic', '.heif'];
+    const specialExtensions = ['.heic', '.heif', '.tif', '.tiff'];
 
     // Filter and validate files first
     const validFiles = files.filter(file => {
-      const isHeic = heicExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
-      const isImage = isHeic || imageTypes.includes(file.type) || file.type.startsWith('image/');
+      const isSpecial = specialExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+      const isImage = isSpecial || imageTypes.includes(file.type) || file.type.startsWith('image/');
       const isVideo = videoTypes.includes(file.type);
       if (!isImage && !isVideo) return false;
       if (file.size > MAX_FILE_SIZE) {
@@ -8613,13 +8613,36 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
       const batch = validFiles.slice(i, i + CONCURRENCY);
       const results = await Promise.allSettled(batch.map(async (file) => {
         const isVideo = videoTypes.includes(file.type);
-        const isHeic = heicExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+        const lowerName = file.name.toLowerCase();
+        const isHeic = lowerName.endsWith('.heic') || lowerName.endsWith('.heif');
+        const isTiff = lowerName.endsWith('.tif') || lowerName.endsWith('.tiff');
         const isImage = !isVideo;
 
-        // Convert HEIC to JPEG first, then resize
+        // Convert HEIC/TIFF to JPEG first, then resize
         let processedFile = file;
         if (isHeic) {
           processedFile = await convertHeic(file);
+        } else if (isTiff) {
+          // TIFF: load into canvas to convert to JPEG (browsers may not display TIFF natively)
+          processedFile = await new Promise((resolve) => {
+            const img = new window.Image();
+            const url = URL.createObjectURL(file);
+            img.onload = () => {
+              URL.revokeObjectURL(url);
+              const canvas = document.createElement('canvas');
+              canvas.width = img.width;
+              canvas.height = img.height;
+              canvas.getContext('2d').drawImage(img, 0, 0);
+              canvas.toBlob((blob) => {
+                resolve(new File([blob], file.name.replace(/\.tiff?$/i, '.jpg'), { type: 'image/jpeg' }));
+              }, 'image/jpeg', 0.9);
+            };
+            img.onerror = () => {
+              URL.revokeObjectURL(url);
+              resolve(file);
+            };
+            img.src = url;
+          });
         }
         const uploadFile = isImage ? await resizeImage(processedFile) : file;
 
@@ -9026,7 +9049,7 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*,.heic,.heif,video/mp4,video/webm,video/quicktime"
+                accept="image/*,.heic,.heif,.tif,.tiff,video/mp4,video/webm,video/quicktime"
                 multiple
                 onChange={handleFileUpload}
                 className="hidden"
