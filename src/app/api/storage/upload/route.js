@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server';
 // Allow large file uploads (up to 200MB) and longer execution
 export const maxDuration = 60;
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY; // service_role key for bypassing RLS
+const SUPABASE_URL = (process.env.SUPABASE_URL || '').trim();
+const SUPABASE_KEY = (process.env.SUPABASE_KEY || '').trim();
 const IMAGES_BUCKET = 'validate-images';
 
 // GET - List files in Supabase Storage
