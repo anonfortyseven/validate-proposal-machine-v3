@@ -8526,6 +8526,16 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
   const MAX_FILE_SIZE = 100 * 1024 * 1024;
   const MAX_IMAGE_DIMENSION = 2000; // Resize images to max 2000px on longest side
 
+  // Convert HEIC/HEIF to JPEG using heic2any (lazy-loaded)
+  const convertHeic = async (file) => {
+    const heic2any = (await import('heic2any')).default;
+    const blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
+    // heic2any can return an array for multi-image HEIC; take the first
+    const resultBlob = Array.isArray(blob) ? blob[0] : blob;
+    const name = file.name.replace(/\.heic$/i, '.jpg').replace(/\.heif$/i, '.jpg');
+    return new File([resultBlob], name, { type: 'image/jpeg' });
+  };
+
   // Resize an image file to a reasonable size using canvas
   const resizeImage = (file) => new Promise((resolve) => {
     // Skip SVGs and GIFs (they don't resize well / may be animated)
@@ -8576,12 +8586,14 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
     setStorageError(null);
 
     // Supported file types
-    const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+    const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/heic', 'image/heif'];
     const videoTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
+    const heicExtensions = ['.heic', '.heif'];
 
     // Filter and validate files first
     const validFiles = files.filter(file => {
-      const isImage = imageTypes.includes(file.type) || file.type.startsWith('image/');
+      const isHeic = heicExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+      const isImage = isHeic || imageTypes.includes(file.type) || file.type.startsWith('image/');
       const isVideo = videoTypes.includes(file.type);
       if (!isImage && !isVideo) return false;
       if (file.size > MAX_FILE_SIZE) {
@@ -8601,10 +8613,15 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
       const batch = validFiles.slice(i, i + CONCURRENCY);
       const results = await Promise.allSettled(batch.map(async (file) => {
         const isVideo = videoTypes.includes(file.type);
+        const isHeic = heicExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
         const isImage = !isVideo;
 
-        // Resize images before uploading
-        const uploadFile = isImage ? await resizeImage(file) : file;
+        // Convert HEIC to JPEG first, then resize
+        let processedFile = file;
+        if (isHeic) {
+          processedFile = await convertHeic(file);
+        }
+        const uploadFile = isImage ? await resizeImage(processedFile) : file;
 
         const ext = isImage ? 'jpg' : file.name.split('.').pop();
         const prefix = isVideo ? 'videos/' : '';
@@ -9009,7 +9026,7 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*,video/mp4,video/webm,video/quicktime"
+                accept="image/*,.heic,.heif,video/mp4,video/webm,video/quicktime"
                 multiple
                 onChange={handleFileUpload}
                 className="hidden"
