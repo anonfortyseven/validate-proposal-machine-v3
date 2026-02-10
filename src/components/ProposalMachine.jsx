@@ -8531,45 +8531,59 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
 
     setIsUploading(true);
     setStorageError(null);
-    const newImages = [];
 
     // Supported file types
     const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
     const videoTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
 
-    for (const file of files) {
+    // Filter and validate files first
+    const validFiles = files.filter(file => {
       const isImage = imageTypes.includes(file.type) || file.type.startsWith('image/');
       const isVideo = videoTypes.includes(file.type);
-
-      if (!isImage && !isVideo) continue;
-
-      // Check file size
+      if (!isImage && !isVideo) return false;
       if (file.size > MAX_FILE_SIZE) {
         const sizeMB = Math.round(file.size / 1024 / 1024);
         setStorageError(`File "${file.name}" is too large (${sizeMB}MB). Maximum size is 200MB.`);
-        continue;
+        return false;
       }
+      return true;
+    });
 
-      try {
+    // Upload files concurrently (max 3 at a time)
+    const CONCURRENCY = 3;
+    const newImages = [];
+    const errors = [];
+
+    for (let i = 0; i < validFiles.length; i += CONCURRENCY) {
+      const batch = validFiles.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(batch.map(async (file) => {
+        const isVideo = videoTypes.includes(file.type);
         const ext = file.name.split('.').pop();
-        // Store videos in a videos/ subfolder for organization
         const prefix = isVideo ? 'videos/' : '';
         const filename = `${prefix}${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${ext}`;
 
-        // Upload via API route (uses service_role key server-side)
         const formData = new FormData();
         formData.append('file', file);
         formData.append('filename', filename);
 
-        const response = await fetch('/api/storage/upload', {
+        const response = await fetch('/api/storage/upload/', {
           method: 'POST',
           body: formData
         });
 
+        // Handle non-JSON responses (e.g. Vercel 413 "Request Entity Too Large")
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          const text = await response.text();
+          throw new Error(response.status === 413
+            ? `"${file.name}" is too large for the server (${Math.round(file.size / 1024 / 1024)}MB). Try a smaller file.`
+            : `Upload failed for "${file.name}" (${response.status})`);
+        }
+
         const result = await response.json();
 
         if (response.ok && result.success) {
-          newImages.push({
+          return {
             id: filename,
             name: file.name,
             folderId: currentFolder,
@@ -8578,21 +8592,26 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
             thumbnail: getPublicUrl(filename),
             createdAt: new Date().toISOString(),
             size: file.size,
-            isVideo: isVideo  // Flag to identify videos
-          });
+            isVideo: isVideo
+          };
         } else {
-          console.error('Upload failed:', response.status, result.error);
-          // Better error message for payload too large
-          if (response.status === 413 || (result.error && result.error.includes('Payload too large'))) {
-            setStorageError(`File too large. Please increase the upload limit in Supabase Dashboard → Storage → Settings.`);
-          } else {
-            setStorageError(`Upload failed: ${result.error?.substring(0, 100) || 'Unknown error'}`);
-          }
+          throw new Error(response.status === 413
+            ? `"${file.name}" is too large for the server.`
+            : result.error || `Upload failed for "${file.name}"`);
         }
-      } catch (err) {
-        console.error('Upload error:', err);
-        setStorageError(`Network error: ${err.message}`);
+      }));
+
+      for (const result of results) {
+        if (result.status === 'fulfilled') {
+          newImages.push(result.value);
+        } else {
+          errors.push(result.reason.message);
+        }
       }
+    }
+
+    if (errors.length > 0) {
+      setStorageError(errors.length === 1 ? errors[0] : `${errors.length} uploads failed. ${errors[0]}`);
     }
 
     if (newImages.length > 0) {
