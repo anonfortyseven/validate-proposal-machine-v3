@@ -4952,44 +4952,10 @@ ${imageGenInstructions}`;
         setSelectedElementIds([]);
       }
 
-      // Rotate selected elements: hold R + arrow keys
-      // R + Left/Right = rotate 15°, R + Shift + Left/Right = rotate 1°
-      if (e.key === 'r' && !e.metaKey && !e.ctrlKey && selectedElementIds.length > 0) {
-        // Track that R is held
-        window.__rotateKeyHeld = true;
-      }
-      if (window.__rotateKeyHeld && selectedElementIds.length > 0) {
-        const step = e.shiftKey ? 1 : 15;
-        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-          e.preventDefault();
-          const direction = e.key === 'ArrowLeft' ? -step : step;
-          updateSlides(prev => prev.map((slide, idx) => {
-            if (idx !== currentSlideIndex) return slide;
-            return {
-              ...slide,
-              elements: slide.elements.map(el => {
-                if (!selectedElementIds.includes(el.id)) return el;
-                const current = el.rotation || 0;
-                return { ...el, rotation: (current + direction + 360) % 360 };
-              })
-            };
-          }));
-        }
-      }
-    };
-
-    const handleKeyUp = (e) => {
-      if (e.key === 'r') {
-        window.__rotateKeyHeld = false;
-      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [undo, redo, selectedElementIds, deleteElement, slides.length, currentSlideIndex, updateSlides]);
 
   const addSlide = () => {
@@ -6159,6 +6125,8 @@ function SlideEditor({ slide, slideIndex, totalSlides, selectedElementIds, onSel
   const dragRef = useRef(null);
   const multiDragRef = useRef(null); // For multi-element drag
   const resizeRef = useRef(null);
+  const rotateRef = useRef(null); // For rotation drag
+  const rotateKeyRef = useRef(false); // Tracks if R key is held
   const bgDragRef = useRef(null);
   const bgResizeRef = useRef(null);
   const scaleRef = useRef(scale);
@@ -6238,6 +6206,20 @@ function SlideEditor({ slide, slideIndex, totalSlides, selectedElementIds, onSel
   // Define mouse handlers first (before handleMouseDown uses them)
   const handleMouseMove = useCallback((e) => {
     const pos = getEventPosition(e);
+
+    // Handle rotation drag
+    if (rotateRef.current) {
+      const { centerX, centerY, startAngle, originalRotation } = rotateRef.current;
+      const currentAngle = Math.atan2(pos.y - centerY, pos.x - centerX) * (180 / Math.PI);
+      let newRotation = originalRotation + (currentAngle - startAngle);
+      // Snap to 15° increments when not holding Shift
+      if (!e.shiftKey) {
+        newRotation = Math.round(newRotation / 15) * 15;
+      }
+      rotateRef.current.currentRotation = ((newRotation % 360) + 360) % 360;
+      forceUpdate(n => n + 1);
+      return;
+    }
 
     // Handle multi-element drag
     if (multiDragRef.current) {
@@ -6341,6 +6323,15 @@ function SlideEditor({ slide, slideIndex, totalSlides, selectedElementIds, onSel
   }, [getEventPosition]);
 
   const handleMouseUp = useCallback(() => {
+    // Handle rotation completion
+    if (rotateRef.current) {
+      const rotation = rotateRef.current.currentRotation;
+      onUpdateElementRef.current(rotateRef.current.elementId, {
+        rotation: rotation === 0 ? undefined : rotation
+      });
+      rotateRef.current = null;
+    }
+
     // Handle multi-element drag completion
     if (multiDragRef.current) {
       const updates = multiDragRef.current.elements.map(el => ({
@@ -6418,6 +6409,19 @@ function SlideEditor({ slide, slideIndex, totalSlides, selectedElementIds, onSel
           currentY: element.y
         };
       }
+    } else if (action.startsWith('resize') && rotateKeyRef.current) {
+      // R key held + corner grab = rotation mode
+      const centerX = element.x + element.width / 2;
+      const centerY = element.y + element.height / 2;
+      const startAngle = Math.atan2(pos.y - centerY, pos.x - centerX) * (180 / Math.PI);
+      rotateRef.current = {
+        elementId,
+        centerX,
+        centerY,
+        startAngle,
+        originalRotation: element.rotation || 0,
+        currentRotation: element.rotation || 0
+      };
     } else if (action.startsWith('resize')) {
       resizeRef.current = {
         elementId,
@@ -6449,6 +6453,18 @@ function SlideEditor({ slide, slideIndex, totalSlides, selectedElementIds, onSel
     };
   }, [handleMouseMove, handleMouseUp]);
 
+  // Track R key for rotation mode
+  useEffect(() => {
+    const onKeyDown = (e) => { if (e.key === 'r' && !e.metaKey && !e.ctrlKey) rotateKeyRef.current = true; };
+    const onKeyUp = (e) => { if (e.key === 'r') rotateKeyRef.current = false; };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  }, []);
+
   // Get element position (use drag state if actively dragging)
   const getElementTransform = (element) => {
     // Check multi-drag first
@@ -6469,10 +6485,13 @@ function SlideEditor({ slide, slideIndex, totalSlides, selectedElementIds, onSel
         height: resizeRef.current.currentH
       };
     }
+    if (rotateRef.current && rotateRef.current.elementId === element.id) {
+      return { x: element.x, y: element.y, width: element.width, height: element.height, rotation: rotateRef.current.currentRotation };
+    }
     return { x: element.x, y: element.y, width: element.width, height: element.height };
   };
 
-  const isDragging = dragRef.current !== null || resizeRef.current !== null || multiDragRef.current !== null;
+  const isDragging = dragRef.current !== null || resizeRef.current !== null || multiDragRef.current !== null || rotateRef.current !== null;
 
   return (
     <div ref={containerRef} className="flex-1 flex flex-col items-center justify-center p-6 overflow-hidden outline-none bg-zinc-950/50" tabIndex={0}>
@@ -6483,7 +6502,7 @@ function SlideEditor({ slide, slideIndex, totalSlides, selectedElementIds, onSel
           width: CANVAS_WIDTH * scale,
           height: CANVAS_HEIGHT * scale,
           flexShrink: 0,
-          cursor: isDragging ? (resizeRef.current ? 'nwse-resize' : 'grabbing') : 'default',
+          cursor: isDragging ? (rotateRef.current ? 'crosshair' : resizeRef.current ? 'nwse-resize' : 'grabbing') : 'default',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05)'
         }}
         onDragOver={handleDragOver}
@@ -6781,7 +6800,7 @@ function SlideEditor({ slide, slideIndex, totalSlides, selectedElementIds, onSel
             return (
               <ElementRenderer
                 key={element.id}
-                element={{ ...element, x: transform.x, y: transform.y, width: transform.width, height: transform.height }}
+                element={{ ...element, x: transform.x, y: transform.y, width: transform.width, height: transform.height, ...(transform.rotation !== undefined ? { rotation: transform.rotation } : {}) }}
                 isSelected={selectedElementIds.includes(element.id)}
                 onMouseDown={(e, action) => handleMouseDown(e, element.id, action)}
                 onUpdateElement={onUpdateElement}
