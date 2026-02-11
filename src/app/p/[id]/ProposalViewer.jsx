@@ -908,7 +908,9 @@ function LoadingState() {
 // ============================================
 // CINEMATIC INTRO SEQUENCE - GEOMETRIC GRID EDITION
 // ============================================
-function CinematicIntro({ clientName, projectName, onComplete }) {
+function CinematicIntro({ clientName, projectName: rawProjectName, onComplete }) {
+  // Treat "Untitled Proposal" as empty (backward compat with old shares)
+  const projectName = rawProjectName && rawProjectName !== 'Untitled Proposal' ? rawProjectName : '';
   const [phase, setPhase] = useState(0);
   // Phase 0: Black void
   // Phase 1: Grid lines emerge from center

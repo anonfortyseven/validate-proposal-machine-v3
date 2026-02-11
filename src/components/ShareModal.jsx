@@ -29,7 +29,7 @@ export default function ShareModal({ projectName, clientName, slides, contactNam
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          projectName: projectName || 'Untitled Proposal',
+          projectName: projectName || '',
           clientName: clientName || '',
           slides,
           password: usePassword ? password : null,

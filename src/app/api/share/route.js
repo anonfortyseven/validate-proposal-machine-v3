@@ -168,7 +168,7 @@ export async function POST(request) {
     const share = {
       id: shareId,
       projectId: projectId || null,
-      projectName: projectName || 'Untitled Proposal',
+      projectName: projectName || '',
       clientName: clientName || '',
       createdAt: now,
       expiresAt: expiresInDays ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString() : null,
