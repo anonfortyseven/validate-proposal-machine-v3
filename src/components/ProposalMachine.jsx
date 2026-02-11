@@ -8980,8 +8980,11 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
         });
 
         if (!signRes.ok) {
-          const errData = await signRes.json().catch(() => ({}));
-          throw new Error(errData.error || `Failed to prepare upload for "${file.name}"`);
+          const errText = await signRes.text().catch(() => '');
+          console.error(`Signed URL failed for "${file.name}":`, signRes.status, errText);
+          let errMsg;
+          try { errMsg = JSON.parse(errText)?.error; } catch { errMsg = errText; }
+          throw new Error(errMsg || `Failed to prepare upload for "${file.name}"`);
         }
 
         const { signedUrl, publicUrl } = await signRes.json();
@@ -8996,7 +8999,13 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
         if (!uploadRes.ok) {
           const errText = await uploadRes.text().catch(() => '');
           console.error(`Upload failed for "${file.name}":`, uploadRes.status, errText);
-          throw new Error(`Upload failed for "${file.name}" (${uploadRes.status})`);
+          // Parse Supabase error for a useful message
+          let detail = '';
+          try { detail = JSON.parse(errText)?.error || JSON.parse(errText)?.message || errText; } catch { detail = errText; }
+          if (uploadRes.status === 413 || (detail && detail.toLowerCase().includes('too large'))) {
+            throw new Error(`"${file.name}" exceeds Supabase file size limit. Try a smaller file.`);
+          }
+          throw new Error(`Upload failed for "${file.name}": ${detail || uploadRes.status}`);
         }
 
         return {
