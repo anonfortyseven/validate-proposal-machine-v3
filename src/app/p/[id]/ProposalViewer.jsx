@@ -1145,9 +1145,9 @@ function CinematicIntro({ clientName, projectName, onComplete }) {
           }}
         />
 
-        {/* Client name - types in with mono aesthetic */}
+        {/* Client name */}
         <div
-          className="mb-6 overflow-hidden transition-all ease-out"
+          className="mb-4 overflow-hidden transition-all ease-out"
           style={{
             opacity: phase >= 4 ? (phase >= 6 ? 0 : 1) : 0,
             transform: phase >= 4
@@ -1158,28 +1158,6 @@ function CinematicIntro({ clientName, projectName, onComplete }) {
             transitionDuration: '600ms',
           }}
         >
-          <p
-            className="text-zinc-400 text-sm md:text-base tracking-[0.4em] uppercase"
-            style={{ fontFamily: "'JetBrains Mono', monospace" }}
-          >
-            {clientName || 'Creative Proposal'}
-          </p>
-        </div>
-
-        {/* Project name - THE HERO - massive reveal */}
-        <div
-          className="transition-all ease-out overflow-hidden"
-          style={{
-            opacity: phase >= 5 ? (phase >= 6 ? 0 : 1) : 0,
-            transform: phase >= 5
-              ? phase >= 6
-                ? 'translateY(-20px) scale(0.95)'
-                : 'translateY(0) scale(1)'
-              : 'translateY(50px) scale(0.9)',
-            transitionDuration: '800ms',
-            transitionDelay: phase === 5 ? '100ms' : '0ms',
-          }}
-        >
           <h1
             className="text-white text-5xl md:text-7xl lg:text-8xl tracking-wider text-center px-4"
             style={{
@@ -1187,9 +1165,36 @@ function CinematicIntro({ clientName, projectName, onComplete }) {
               textShadow: '0 0 60px rgba(255, 255, 255, 0.1)',
             }}
           >
-            {projectName?.toUpperCase() || 'CREATIVE PROPOSAL'}
+            {clientName?.toUpperCase() || 'CREATIVE PROPOSAL'}
           </h1>
         </div>
+
+        {/* Project name - only shown if it exists */}
+        {projectName && (
+          <div
+            className="transition-all ease-out overflow-hidden"
+            style={{
+              opacity: phase >= 5 ? (phase >= 6 ? 0 : 1) : 0,
+              transform: phase >= 5
+                ? phase >= 6
+                  ? 'translateY(-20px) scale(0.95)'
+                  : 'translateY(0) scale(1)'
+                : 'translateY(50px) scale(0.9)',
+              transitionDuration: '800ms',
+              transitionDelay: phase === 5 ? '100ms' : '0ms',
+            }}
+          >
+            <h1
+              className="text-white text-5xl md:text-7xl lg:text-8xl tracking-wider text-center px-4"
+              style={{
+                fontFamily: "'Bebas Neue', sans-serif",
+                textShadow: '0 0 60px rgba(255, 255, 255, 0.1)',
+              }}
+            >
+              {projectName.toUpperCase()}
+            </h1>
+          </div>
+        )}
       </div>
 
       {/* ===== GEOMETRIC ACCENTS - floating rectangles ===== */}
