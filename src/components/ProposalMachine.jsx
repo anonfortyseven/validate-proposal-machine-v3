@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, Sparkles, Send, RefreshCw, Plus, ArrowLeft, X, AlertCircle, Type, Image, Trash2, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Upload, Check, Cloud, Save, FolderOpen, Folder, Clock, Undo2, Redo2, Archive, ArchiveRestore, Eye, EyeOff, Menu, Edit3, FolderPlus, Download, MoreVertical, Grid, List, Search, ImageIcon, Move, Crop, ZoomIn, ZoomOut, Play, Video, FileDown, Link2, Copy, Lock, LogOut, Share2, User, Shield, Star } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Sparkles, Send, RefreshCw, Plus, ArrowLeft, X, AlertCircle, Type, Image, Trash2, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Upload, Check, Cloud, Save, FolderOpen, Folder, Clock, Undo2, Redo2, Archive, ArchiveRestore, Eye, EyeOff, Menu, Edit3, FolderPlus, Download, MoreVertical, Grid, List, Search, ImageIcon, Move, Crop, ZoomIn, ZoomOut, Play, Video, FileDown, Link2, Copy, Lock, LogOut, Share2, User, Shield, Star } from 'lucide-react';
 import { useAuth } from './LoginGate';
 import ShareModal from './ShareModal';
 import { BRAND_GUIDELINES, BRAND_GUIDELINES_SHORT, COLORS as BRAND_COLORS, TYPOGRAPHY, FONTS } from '../config/brandGuidelines';
@@ -4977,6 +4977,17 @@ ${imageGenInstructions}`;
     setSelectedElementIds([]);
   };
 
+  const moveSlide = (direction) => {
+    const newIndex = currentSlideIndex + direction;
+    if (newIndex < 0 || newIndex >= slides.length) return;
+    updateSlides(prev => {
+      const newSlides = [...prev];
+      [newSlides[currentSlideIndex], newSlides[newIndex]] = [newSlides[newIndex], newSlides[currentSlideIndex]];
+      return newSlides;
+    });
+    setCurrentSlideIndex(newIndex);
+  };
+
   const handleNew = async () => {
     // Save current work before clearing
     if (slides.length && currentProjectId) {
@@ -5429,6 +5440,7 @@ ${imageGenInstructions}`;
                 onNavigate={setCurrentSlideIndex}
                 onAddSlide={addSlide}
                 onDeleteSlide={deleteSlide}
+                onMoveSlide={moveSlide}
                 isMobile={isMobile}
                 onMobileEdit={() => setMobileEditorOpen(true)}
                 onDropImage={addImageElement}
@@ -6090,7 +6102,7 @@ function MobileEditorPanel({ selectedElement, slide, onUpdateElement, onUpdateBa
 // SLIDE EDITOR (Canvas)
 // ============================================
 // EXPIRATION MODAL
-function SlideEditor({ slide, slideIndex, totalSlides, selectedElementIds, onSelectElement, onUpdateElement, onUpdateMultipleElements, onDeleteElement, onNavigate, onAddSlide, onDeleteSlide, isMobile, onMobileEdit, onDropImage, onOpenCropper, editingBackground, onUpdateBackground, editingMode, onInsertCaseStudy, onSaveSlide, savingSlide, onShowSavedSlides }) {
+function SlideEditor({ slide, slideIndex, totalSlides, selectedElementIds, onSelectElement, onUpdateElement, onUpdateMultipleElements, onDeleteElement, onNavigate, onAddSlide, onDeleteSlide, onMoveSlide, isMobile, onMobileEdit, onDropImage, onOpenCropper, editingBackground, onUpdateBackground, editingMode, onInsertCaseStudy, onSaveSlide, savingSlide, onShowSavedSlides }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const [scale, setScale] = useState(1);
@@ -6802,6 +6814,29 @@ function SlideEditor({ slide, slideIndex, totalSlides, selectedElementIds, onSel
           >
             <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-white transition-colors" />
           </button>
+
+          {/* Move slide reorder buttons */}
+          {totalSlides > 1 && (
+            <>
+              <div className="w-px h-4 bg-zinc-800 mx-0.5" />
+              <button
+                onClick={() => onMoveSlide(-1)}
+                disabled={slideIndex === 0}
+                className="p-1.5 rounded-md hover:bg-zinc-800/60 active:bg-zinc-700/60 disabled:opacity-30 disabled:hover:bg-transparent transition-all group press-effect"
+                title="Move slide earlier"
+              >
+                <ChevronUp className="w-4 h-4 text-zinc-400 group-hover:text-white transition-colors" />
+              </button>
+              <button
+                onClick={() => onMoveSlide(1)}
+                disabled={slideIndex === totalSlides - 1}
+                className="p-1.5 rounded-md hover:bg-zinc-800/60 active:bg-zinc-700/60 disabled:opacity-30 disabled:hover:bg-transparent transition-all group press-effect"
+                title="Move slide later"
+              >
+                <ChevronDown className="w-4 h-4 text-zinc-400 group-hover:text-white transition-colors" />
+              </button>
+            </>
+          )}
           </div>
         </div>
 
