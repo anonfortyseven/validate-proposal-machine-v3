@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Lock, Download, Loader2, ChevronDown, ChevronRight, AlertCircle, Mail, Phone } from 'lucide-react';
+import { Lock, Download, Loader2, ChevronDown, ChevronLeft, ChevronRight, AlertCircle, Mail, Phone } from 'lucide-react';
 
 const LOGO_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
   ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/validate-projects/assets/VALIDATE_W.png`
@@ -181,7 +181,7 @@ function PDFElementRenderer({ element }) {
   }
 
   if (type === 'video') {
-    const videoUrl = element.src || element.videoUrl;
+    const videoUrl = getVideoUrls(element)[0] || element.src;
     let thumbnailUrl = element.pdfThumbnail || null;
 
     const youtubeMatch = videoUrl?.match(
@@ -609,8 +609,9 @@ function ElementRenderer({ element }) {
   }
 
   if (type === 'video') {
-    const videoUrl = element.src || element.videoUrl;
-    const embedUrl = getEmbedUrl(videoUrl);
+    const urls = getVideoUrls(element);
+    const [activeIdx, setActiveIdx] = useState(0);
+    const embedUrl = getEmbedUrl(urls[activeIdx]);
 
     const videoStyle = {
       position: 'absolute',
@@ -622,14 +623,35 @@ function ElementRenderer({ element }) {
 
     if (embedUrl) {
       return (
-        <div style={videoStyle}>
-          <iframe
-            src={embedUrl}
-            className="w-full h-full rounded-lg"
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-            allowFullScreen
-          />
+        <div style={videoStyle} className="group">
+          <div className="relative w-full h-full">
+            <iframe
+              src={embedUrl}
+              className="w-full h-full rounded-lg"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+              allowFullScreen
+            />
+            {urls.length > 1 && (
+              <div className="absolute inset-0 pointer-events-none">
+                <button
+                  className="pointer-events-auto absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/70 hover:bg-black/90 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => setActiveIdx((activeIdx - 1 + urls.length) % urls.length)}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  className="pointer-events-auto absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/70 hover:bg-black/90 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => setActiveIdx((activeIdx + 1) % urls.length)}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+                <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-black/70 rounded-full text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                  {activeIdx + 1}/{urls.length}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       );
     }
@@ -641,8 +663,14 @@ function ElementRenderer({ element }) {
 }
 
 // ============================================
-// VIDEO URL PARSER
+// VIDEO URL HELPERS
 // ============================================
+function getVideoUrls(el) {
+  if (el.videoUrls && Array.isArray(el.videoUrls)) return el.videoUrls;
+  if (el.videoUrl) return [el.videoUrl];
+  return [];
+}
+
 function getEmbedUrl(url) {
   if (!url) return null;
 
@@ -1561,7 +1589,7 @@ export default function ProposalViewer({ share, hasPassword, shareId }) {
           }
           // Video links
           if (element.type === 'video') {
-            const videoUrl = element.src || element.videoUrl;
+            const videoUrl = getVideoUrls(element)[0] || element.src;
             let videoLink = videoUrl;
             const youtubeMatch = videoUrl?.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
             if (youtubeMatch) videoLink = `https://www.youtube.com/watch?v=${youtubeMatch[1]}`;

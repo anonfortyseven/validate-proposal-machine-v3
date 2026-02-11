@@ -998,6 +998,13 @@ function proposalToSlides(proposal) {
 // MAIN COMPONENT
 // ============================================
 // EXPIRATION MODAL
+// Helper: backward-compatible video URL array getter
+const getVideoUrls = (el) => {
+  if (el.videoUrls && Array.isArray(el.videoUrls)) return el.videoUrls;
+  if (el.videoUrl) return [el.videoUrl];
+  return [];
+};
+
 export default function ValidateProposalMachine() {
   const isMobile = useIsMobile();
   const [proposal, setProposal] = useState(null);
@@ -2154,7 +2161,7 @@ export default function ValidateProposalMachine() {
             `;
             el.appendChild(img);
           } else if (element.type === 'video') {
-            const videoUrl = element.src || element.videoUrl;
+            const videoUrl = getVideoUrls(element)[0] || element.src;
             let thumbnailUrl = element.pdfThumbnail || null;
             let videoLink = videoUrl;
 
@@ -3981,10 +3988,11 @@ SLIDES TO REWRITE (slides ${i + 1}-${chunkEnd}):
 ${JSON.stringify(chunkSlides.map(s => ({
   name: s.name,
   background: { ...s.background, image: s.background?.image ? '[BG_IMAGE]' : undefined },
-  elements: s.elements.map(({ id, src, videoUrl, videoSrc, ...rest }) => ({
+  elements: s.elements.map(({ id, src, videoUrl, videoUrls, videoSrc, ...rest }) => ({
     ...rest,
     ...(src ? { src: '[IMG]' } : {}),
     ...(videoUrl ? { videoUrl: '[VID]' } : {}),
+    ...(videoUrls ? { videoUrls: '[VID_ARRAY]' } : {}),
     ...(videoSrc ? { videoSrc: '[VID]' } : {})
   }))
 })), null, 2)}
@@ -4048,6 +4056,7 @@ Return a JSON array with the ${chunkEnd - i} modified slides:`;
                     id: el.id || generateElementId(),
                     ...(el.src === '[IMG]' && origEl?.src ? { src: origEl.src } : {}),
                     ...(el.videoUrl === '[VID]' && origEl?.videoUrl ? { videoUrl: origEl.videoUrl } : {}),
+                    ...(el.videoUrls === '[VID_ARRAY]' && origEl?.videoUrls ? { videoUrls: origEl.videoUrls, activeVideoIndex: origEl.activeVideoIndex || 0 } : {}),
                     ...(el.videoSrc === '[VID]' && origEl?.videoSrc ? { videoSrc: origEl.videoSrc } : {})
                   };
                 });
@@ -4158,11 +4167,12 @@ DO NOT change the client, project, or budget. Only make the specific changes req
             ? (slide.background.image.length > 100 ? '[BG_IMAGE]' : slide.background.image)
             : undefined
         },
-        elements: slide.elements.map(({ id, src, videoUrl, ...rest }) => ({
+        elements: slide.elements.map(({ id, src, videoUrl, videoUrls, ...rest }) => ({
           ...rest,
           // Replace image/video sources with placeholders if they're long
           ...(src ? { src: src.length > 100 ? '[IMG]' : src } : {}),
-          ...(videoUrl ? { videoUrl: videoUrl.length > 100 ? '[VID]' : videoUrl } : {})
+          ...(videoUrl ? { videoUrl: videoUrl.length > 100 ? '[VID]' : videoUrl } : {}),
+          ...(videoUrls ? { videoUrls: '[VID_ARRAY]' } : {})
         }))
       })));
       slideContext = `${proposalSummary}\nCurrent slides JSON:\n${contextJson}`;
@@ -4552,6 +4562,10 @@ ${imageGenInstructions}`;
                 if (el.videoUrl === '[VID]' && originalEl.videoUrl) {
                   restoredEl.videoUrl = originalEl.videoUrl;
                 }
+                if (el.videoUrls === '[VID_ARRAY]' && originalEl.videoUrls) {
+                  restoredEl.videoUrls = originalEl.videoUrls;
+                  restoredEl.activeVideoIndex = originalEl.activeVideoIndex || 0;
+                }
               }
             }
 
@@ -4810,7 +4824,8 @@ ${imageGenInstructions}`;
     const newElement = {
       id: generateElementId(),
       type: 'video',
-      videoUrl: videoUrl,
+      videoUrls: [videoUrl],
+      activeVideoIndex: 0,
       x: 100,
       y: 100,
       width: 480,
@@ -7177,7 +7192,9 @@ function ElementRenderer({ element, isSelected, onMouseDown, onUpdateElement, on
       return null;
     };
 
-    const embedUrl = getEmbedUrl(element.videoUrl);
+    const urls = getVideoUrls(element);
+    const activeIdx = element.activeVideoIndex || 0;
+    const embedUrl = getEmbedUrl(urls[activeIdx]);
     const [isHovered, setIsHovered] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [isUploadingThumb, setIsUploadingThumb] = useState(false);
@@ -7281,6 +7298,27 @@ function ElementRenderer({ element, isSelected, onMouseDown, onUpdateElement, on
               <div className="text-center">
                 <Play className="w-12 h-12 mx-auto mb-2 opacity-50" />
                 <p className="text-sm">Paste video URL in panel</p>
+              </div>
+            </div>
+          )}
+
+          {/* Video carousel navigation */}
+          {urls.length > 1 && !editMode && (
+            <div className="absolute inset-0 pointer-events-none z-10">
+              <button
+                className="pointer-events-auto absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/70 hover:bg-black/90 rounded-full flex items-center justify-center text-white transition-colors"
+                onClick={(e) => { e.stopPropagation(); onUpdateElement(element.id, { activeVideoIndex: (activeIdx - 1 + urls.length) % urls.length }); }}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                className="pointer-events-auto absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/70 hover:bg-black/90 rounded-full flex items-center justify-center text-white transition-colors"
+                onClick={(e) => { e.stopPropagation(); onUpdateElement(element.id, { activeVideoIndex: (activeIdx + 1) % urls.length }); }}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-black/70 rounded-full text-white text-xs font-medium">
+                {activeIdx + 1}/{urls.length}
               </div>
             </div>
           )}
@@ -7936,16 +7974,44 @@ function EditorPanel({ selectedElement, slide, onUpdateElement, onUpdateBackgrou
 
             {selectedElement.type === 'video' && (
               <div className="space-y-3">
-                <div>
-                  <label className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5 block">Video URL</label>
-                  <input
-                    type="text"
-                    value={selectedElement.videoUrl || ''}
-                    onChange={(e) => onUpdateElement(selectedElement.id, { videoUrl: e.target.value })}
-                    placeholder="YouTube or Vimeo URL"
-                    className="w-full px-3 py-2 bg-zinc-900/80 border border-zinc-700 rounded-lg text-white text-xs placeholder-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors"
-                  />
-                </div>
+                <label className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5 block">Video URLs</label>
+                {getVideoUrls(selectedElement).map((url, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-zinc-600 w-4 text-right flex-shrink-0">{idx + 1}.</span>
+                    <input
+                      type="text"
+                      value={url}
+                      onChange={(e) => {
+                        const newUrls = [...getVideoUrls(selectedElement)];
+                        newUrls[idx] = e.target.value;
+                        onUpdateElement(selectedElement.id, { videoUrls: newUrls });
+                      }}
+                      placeholder="YouTube or Vimeo URL"
+                      className="flex-1 px-3 py-2 bg-zinc-900/80 border border-zinc-700 rounded-lg text-white text-xs placeholder-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors"
+                    />
+                    {getVideoUrls(selectedElement).length > 1 && (
+                      <button
+                        onClick={() => {
+                          const newUrls = getVideoUrls(selectedElement).filter((_, i) => i !== idx);
+                          const newIdx = Math.min(selectedElement.activeVideoIndex || 0, newUrls.length - 1);
+                          onUpdateElement(selectedElement.id, { videoUrls: newUrls, activeVideoIndex: newIdx });
+                        }}
+                        className="p-1.5 text-zinc-600 hover:text-red-500 transition-colors flex-shrink-0"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  onClick={() => {
+                    const newUrls = [...getVideoUrls(selectedElement), ''];
+                    onUpdateElement(selectedElement.id, { videoUrls: newUrls });
+                  }}
+                  className="w-full py-2 border border-dashed border-zinc-700 hover:border-zinc-500 rounded-lg text-zinc-500 hover:text-zinc-300 text-xs transition-colors"
+                >
+                  + Add Video
+                </button>
                 <p className="text-[10px] text-zinc-600 text-center">Supports YouTube and Vimeo links</p>
 
                 {/* PDF Thumbnail status */}
