@@ -288,7 +288,7 @@ function PDFElementRenderer({ element }) {
 // ============================================
 function CornerAccents({ className = '' }) {
   return (
-    <div className={`pointer-events-none ${className}`}>
+    <div className={`pointer-events-none hidden sm:block ${className}`}>
       {/* Top Left */}
       <div className="fixed top-6 left-6 w-16 h-16 opacity-20">
         <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-zinc-500 to-transparent" />
@@ -801,7 +801,7 @@ function PasswordGate({ onUnlock, shareId }) {
   };
 
   return (
-    <div className="min-h-screen bg-bg-primary flex items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-bg-primary flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
       {/* Atmospheric background */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-gradient-radial from-accent/5 via-transparent to-transparent" />
@@ -816,7 +816,7 @@ function PasswordGate({ onUnlock, shareId }) {
           transform: mounted ? 'translateY(0) scale(1)' : 'translateY(20px) scale(0.98)',
         }}
       >
-        <div className="p-8 bg-bg-secondary/90 backdrop-blur-xl border border-border rounded-2xl shadow-2xl">
+        <div className="p-6 sm:p-8 bg-bg-secondary/90 backdrop-blur-xl border border-border rounded-2xl shadow-2xl">
           {/* Logo */}
           <div className="text-center mb-8">
             <img
@@ -939,7 +939,7 @@ function CinematicIntro({ clientName, projectName: rawProjectName, onComplete })
 
       {/* ===== GEOMETRIC GRID SYSTEM ===== */}
       <div className="absolute inset-0 flex items-center justify-center">
-        {/* Horizontal grid lines - draw from center */}
+        {/* Horizontal grid lines - draw from center (fewer on mobile) */}
         {[...Array(7)].map((_, i) => {
           const offset = (i - 3) * 60;
           return (
@@ -994,9 +994,9 @@ function CinematicIntro({ clientName, projectName: rawProjectName, onComplete })
           }}
         />
 
-        {/* Corner frame brackets */}
+        {/* Corner frame brackets - hidden on small mobile */}
         {/* Top Left */}
-        <div className="absolute top-[15%] left-[10%]">
+        <div className="absolute top-[15%] left-[5%] sm:left-[10%] hidden sm:block">
           <div
             className="absolute top-0 left-0 bg-white transition-all ease-out"
             style={{
@@ -1030,7 +1030,7 @@ function CinematicIntro({ clientName, projectName: rawProjectName, onComplete })
         </div>
 
         {/* Top Right */}
-        <div className="absolute top-[15%] right-[10%]">
+        <div className="absolute top-[15%] right-[5%] sm:right-[10%] hidden sm:block">
           <div
             className="absolute top-0 right-0 bg-white transition-all ease-out"
             style={{
@@ -1054,7 +1054,7 @@ function CinematicIntro({ clientName, projectName: rawProjectName, onComplete })
         </div>
 
         {/* Bottom Left */}
-        <div className="absolute bottom-[15%] left-[10%]">
+        <div className="absolute bottom-[15%] left-[5%] sm:left-[10%] hidden sm:block">
           <div
             className="absolute bottom-0 left-0 bg-white transition-all ease-out"
             style={{
@@ -1078,7 +1078,7 @@ function CinematicIntro({ clientName, projectName: rawProjectName, onComplete })
         </div>
 
         {/* Bottom Right */}
-        <div className="absolute bottom-[15%] right-[10%]">
+        <div className="absolute bottom-[15%] right-[5%] sm:right-[10%] hidden sm:block">
           <div
             className="absolute bottom-0 right-0 bg-white transition-all ease-out"
             style={{
@@ -1131,13 +1131,13 @@ function CinematicIntro({ clientName, projectName: rawProjectName, onComplete })
           <img
             src={LOGO_URL}
             alt="VALIDATE"
-            className="h-10 md:h-14 w-auto mx-auto"
+            className="h-8 sm:h-10 md:h-14 w-auto mx-auto"
           />
         </div>
 
         {/* Red accent bar - expands from center */}
         <div
-          className="my-8 h-[3px] bg-[#C41E3A] transition-all ease-out"
+          className="my-4 sm:my-8 h-[2px] sm:h-[3px] bg-[#C41E3A] transition-all ease-out"
           style={{
             width: phase >= 3 ? (phase >= 6 ? '0px' : '120px') : '0px',
             opacity: phase >= 3 ? (phase >= 6 ? 0 : 1) : 0,
@@ -1161,7 +1161,7 @@ function CinematicIntro({ clientName, projectName: rawProjectName, onComplete })
           }}
         >
           <h1
-            className="text-white text-5xl md:text-7xl lg:text-8xl tracking-wider text-center px-4"
+            className="text-white text-3xl sm:text-5xl md:text-7xl lg:text-8xl tracking-wider text-center px-4"
             style={{
               fontFamily: "'Bebas Neue', sans-serif",
               textShadow: '0 0 60px rgba(255, 255, 255, 0.1)',
@@ -1187,7 +1187,7 @@ function CinematicIntro({ clientName, projectName: rawProjectName, onComplete })
             }}
           >
             <h1
-              className="text-white text-5xl md:text-7xl lg:text-8xl tracking-wider text-center px-4"
+              className="text-white text-3xl sm:text-5xl md:text-7xl lg:text-8xl tracking-wider text-center px-4"
               style={{
                 fontFamily: "'Bebas Neue', sans-serif",
                 textShadow: '0 0 60px rgba(255, 255, 255, 0.1)',
@@ -1199,10 +1199,10 @@ function CinematicIntro({ clientName, projectName: rawProjectName, onComplete })
         )}
       </div>
 
-      {/* ===== GEOMETRIC ACCENTS - floating rectangles ===== */}
+      {/* ===== GEOMETRIC ACCENTS - floating rectangles (hidden on mobile) ===== */}
       {/* Top left geometric */}
       <div
-        className="absolute top-[20%] left-[5%] border border-zinc-700 transition-all ease-out"
+        className="absolute top-[20%] left-[5%] border border-zinc-700 transition-all ease-out hidden sm:block"
         style={{
           width: phase >= 2 ? '40px' : '0px',
           height: phase >= 2 ? '80px' : '0px',
@@ -1214,7 +1214,7 @@ function CinematicIntro({ clientName, projectName: rawProjectName, onComplete })
 
       {/* Bottom right geometric */}
       <div
-        className="absolute bottom-[25%] right-[8%] border border-zinc-700 transition-all ease-out"
+        className="absolute bottom-[25%] right-[8%] border border-zinc-700 transition-all ease-out hidden sm:block"
         style={{
           width: phase >= 2 ? '60px' : '0px',
           height: phase >= 2 ? '40px' : '0px',
@@ -1226,7 +1226,7 @@ function CinematicIntro({ clientName, projectName: rawProjectName, onComplete })
 
       {/* Small red square accent */}
       <div
-        className="absolute top-[30%] right-[15%] bg-[#C41E3A] transition-all ease-out"
+        className="absolute top-[30%] right-[15%] bg-[#C41E3A] transition-all ease-out hidden sm:block"
         style={{
           width: phase >= 3 ? '8px' : '0px',
           height: phase >= 3 ? '8px' : '0px',
@@ -1254,13 +1254,13 @@ function EndCard({ shareData, onDownloadPdf, isExporting, exportProgress }) {
 
   return (
     <div
-      className="mt-24 mb-12 text-center transition-all duration-700"
+      className="mt-12 sm:mt-24 mb-8 sm:mb-12 text-center transition-all duration-700 px-4 sm:px-0"
       style={{
         opacity: mounted ? 1 : 0,
         transform: mounted ? 'translateY(0)' : 'translateY(30px)',
       }}
     >
-      <div className="inline-block p-10 bg-bg-secondary/80 backdrop-blur-md border border-border rounded-2xl max-w-md">
+      <div className="inline-block p-6 sm:p-10 bg-bg-secondary/80 backdrop-blur-md border border-border rounded-2xl max-w-md w-full">
         <p className="text-text-secondary text-sm mb-8">
           Please reach out to discuss next steps.
         </p>
@@ -1672,7 +1672,7 @@ export default function ProposalViewer({ share, hasPassword, shareId }) {
   }
 
   return (
-    <div className="min-h-screen bg-black relative">
+    <div className="min-h-screen bg-black relative overflow-x-hidden">
       <AtmosphericBackground />
       <CornerAccents />
       <ScrollProgress />
@@ -1686,26 +1686,29 @@ export default function ProposalViewer({ share, hasPassword, shareId }) {
         }}
       >
         <div className="bg-black/80 backdrop-blur-xl border-b border-zinc-800/30">
-          <div className="max-w-6xl mx-auto px-8 py-5 flex items-center justify-between">
-            <a href="https://createwithvalidate.com" target="_blank" rel="noopener noreferrer">
-              <img src={LOGO_URL} alt="VALIDATE" className="h-6 w-auto opacity-80 hover:opacity-100 transition-opacity" />
+          <div className="max-w-6xl mx-auto px-4 sm:px-8 py-3 sm:py-5 flex items-center justify-between">
+            <a href="https://createwithvalidate.com" target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+              <img src={LOGO_URL} alt="VALIDATE" className="h-5 sm:h-6 w-auto opacity-80 hover:opacity-100 transition-opacity" />
             </a>
 
-            <div className="text-center">
+            <div className="text-center flex-1 min-w-0 mx-3">
               <h1
-                className="text-sm text-white/90 tracking-[0.2em]"
+                className="text-xs sm:text-sm text-white/90 tracking-[0.2em] truncate"
                 style={{ fontFamily: "'Bebas Neue', sans-serif" }}
               >
-                {shareData.projectName?.toUpperCase()}
+                {(() => {
+                  const pn = shareData.projectName && shareData.projectName !== 'Untitled Proposal' ? shareData.projectName : '';
+                  return (pn || shareData.clientName || '').toUpperCase();
+                })()}
               </h1>
-              {shareData.clientName && (
-                <p className="text-[10px] text-zinc-500 tracking-wider mt-0.5">{shareData.clientName}</p>
+              {shareData.clientName && shareData.projectName && shareData.projectName !== 'Untitled Proposal' && (
+                <p className="text-[10px] text-zinc-500 tracking-wider mt-0.5 truncate">{shareData.clientName}</p>
               )}
             </div>
 
-            <div className="font-mono text-xs text-zinc-500 tabular-nums">
+            <div className="font-mono text-[10px] sm:text-xs text-zinc-500 tabular-nums flex-shrink-0">
               <span className="text-white">{String(currentSlide).padStart(2, '0')}</span>
-              <span className="mx-1.5 text-zinc-700">/</span>
+              <span className="mx-1 sm:mx-1.5 text-zinc-700">/</span>
               <span>{String(slides.length).padStart(2, '0')}</span>
             </div>
           </div>
@@ -1713,8 +1716,8 @@ export default function ProposalViewer({ share, hasPassword, shareId }) {
       </header>
 
       {/* Slides */}
-      <main className="relative z-10 max-w-6xl mx-auto px-8 pt-28 pb-12">
-        <div ref={containerRef} className="flex flex-col items-center gap-16">
+      <main className="relative z-10 max-w-6xl mx-auto px-3 sm:px-8 pt-16 sm:pt-28 pb-8 sm:pb-12">
+        <div ref={containerRef} className="flex flex-col items-center gap-6 sm:gap-16">
           {slides.map((slide, index) => (
             <div
               key={slide.id || index}
@@ -1746,8 +1749,8 @@ export default function ProposalViewer({ share, hasPassword, shareId }) {
 
       {/* Scroll hint on first slide */}
       {currentSlide === 1 && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-30 animate-bounce opacity-40">
-          <ChevronDown className="w-6 h-6 text-white" />
+        <div className="fixed bottom-4 sm:bottom-8 left-1/2 -translate-x-1/2 z-30 animate-bounce opacity-40">
+          <ChevronDown className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
         </div>
       )}
     </div>
