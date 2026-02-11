@@ -8896,13 +8896,16 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
     // Supported file types
     const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/heic', 'image/heif', 'image/tiff'];
     const videoTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
-    const specialExtensions = ['.heic', '.heif', '.tif', '.tiff'];
+    const specialImageExtensions = ['.heic', '.heif', '.tif', '.tiff'];
+    const videoExtensions = ['.mp4', '.webm', '.mov', '.qt'];
 
     // Filter and validate files first
     const validFiles = files.filter(file => {
-      const isSpecial = specialExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
-      const isImage = isSpecial || imageTypes.includes(file.type) || file.type.startsWith('image/');
-      const isVideo = videoTypes.includes(file.type);
+      const lowerName = file.name.toLowerCase();
+      const isSpecialImage = specialImageExtensions.some(ext => lowerName.endsWith(ext));
+      const isVideoByExt = videoExtensions.some(ext => lowerName.endsWith(ext));
+      const isImage = isSpecialImage || imageTypes.includes(file.type) || file.type.startsWith('image/');
+      const isVideo = videoTypes.includes(file.type) || isVideoByExt;
       if (!isImage && !isVideo) return false;
       if (file.size > MAX_FILE_SIZE) {
         const sizeMB = Math.round(file.size / 1024 / 1024);
@@ -8920,8 +8923,8 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
     for (let i = 0; i < validFiles.length; i += CONCURRENCY) {
       const batch = validFiles.slice(i, i + CONCURRENCY);
       const results = await Promise.allSettled(batch.map(async (file) => {
-        const isVideo = videoTypes.includes(file.type);
         const lowerName = file.name.toLowerCase();
+        const isVideo = videoTypes.includes(file.type) || videoExtensions.some(ext => lowerName.endsWith(ext));
         const isHeic = lowerName.endsWith('.heic') || lowerName.endsWith('.heif');
         const isTiff = lowerName.endsWith('.tif') || lowerName.endsWith('.tiff');
         const isImage = !isVideo;
@@ -8961,15 +8964,19 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
         }
         const uploadFile = isImage ? await resizeImage(processedFile) : file;
 
-        const ext = isImage ? 'jpg' : file.name.split('.').pop();
+        const ext = isImage ? 'jpg' : (file.name.split('.').pop() || 'mp4').toLowerCase();
         const prefix = isVideo ? 'videos/' : '';
         const filename = `${prefix}${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${ext}`;
+
+        // Determine content type - browsers sometimes report empty or wrong types for videos
+        const mimeTypes = { mp4: 'video/mp4', webm: 'video/webm', mov: 'video/mp4', qt: 'video/mp4', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml' };
+        const contentType = uploadFile.type || mimeTypes[ext] || (isVideo ? 'video/mp4' : 'application/octet-stream');
 
         // Get a signed upload URL from our server
         const signRes = await fetch('/api/storage/upload/', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename, contentType: uploadFile.type })
+          body: JSON.stringify({ filename, contentType })
         });
 
         if (!signRes.ok) {
@@ -8982,12 +8989,13 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
         // Upload directly to Supabase (bypasses Vercel body limit)
         const uploadRes = await fetch(signedUrl, {
           method: 'PUT',
-          headers: { 'Content-Type': uploadFile.type },
+          headers: { 'Content-Type': contentType },
           body: uploadFile
         });
 
         if (!uploadRes.ok) {
           const errText = await uploadRes.text().catch(() => '');
+          console.error(`Upload failed for "${file.name}":`, uploadRes.status, errText);
           throw new Error(`Upload failed for "${file.name}" (${uploadRes.status})`);
         }
 
