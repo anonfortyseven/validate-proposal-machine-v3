@@ -1005,6 +1005,12 @@ const getVideoUrls = (el) => {
   return [];
 };
 
+// Helper: get video titles array (parallel to videoUrls)
+const getVideoTitles = (el) => {
+  if (el.videoTitles && Array.isArray(el.videoTitles)) return el.videoTitles;
+  return getVideoUrls(el).map(() => '');
+};
+
 export default function ValidateProposalMachine() {
   const isMobile = useIsMobile();
   const [proposal, setProposal] = useState(null);
@@ -3988,11 +3994,12 @@ SLIDES TO REWRITE (slides ${i + 1}-${chunkEnd}):
 ${JSON.stringify(chunkSlides.map(s => ({
   name: s.name,
   background: { ...s.background, image: s.background?.image ? '[BG_IMAGE]' : undefined },
-  elements: s.elements.map(({ id, src, videoUrl, videoUrls, videoSrc, ...rest }) => ({
+  elements: s.elements.map(({ id, src, videoUrl, videoUrls, videoTitles, videoSrc, ...rest }) => ({
     ...rest,
     ...(src ? { src: '[IMG]' } : {}),
     ...(videoUrl ? { videoUrl: '[VID]' } : {}),
     ...(videoUrls ? { videoUrls: '[VID_ARRAY]' } : {}),
+    ...(videoTitles ? { videoTitles: '[VID_TITLES]' } : {}),
     ...(videoSrc ? { videoSrc: '[VID]' } : {})
   }))
 })), null, 2)}
@@ -4057,6 +4064,7 @@ Return a JSON array with the ${chunkEnd - i} modified slides:`;
                     ...(el.src === '[IMG]' && origEl?.src ? { src: origEl.src } : {}),
                     ...(el.videoUrl === '[VID]' && origEl?.videoUrl ? { videoUrl: origEl.videoUrl } : {}),
                     ...(el.videoUrls === '[VID_ARRAY]' && origEl?.videoUrls ? { videoUrls: origEl.videoUrls, activeVideoIndex: origEl.activeVideoIndex || 0 } : {}),
+                    ...(el.videoTitles === '[VID_TITLES]' && origEl?.videoTitles ? { videoTitles: origEl.videoTitles } : {}),
                     ...(el.videoSrc === '[VID]' && origEl?.videoSrc ? { videoSrc: origEl.videoSrc } : {})
                   };
                 });
@@ -4167,12 +4175,13 @@ DO NOT change the client, project, or budget. Only make the specific changes req
             ? (slide.background.image.length > 100 ? '[BG_IMAGE]' : slide.background.image)
             : undefined
         },
-        elements: slide.elements.map(({ id, src, videoUrl, videoUrls, ...rest }) => ({
+        elements: slide.elements.map(({ id, src, videoUrl, videoUrls, videoTitles, ...rest }) => ({
           ...rest,
           // Replace image/video sources with placeholders if they're long
           ...(src ? { src: src.length > 100 ? '[IMG]' : src } : {}),
           ...(videoUrl ? { videoUrl: videoUrl.length > 100 ? '[VID]' : videoUrl } : {}),
-          ...(videoUrls ? { videoUrls: '[VID_ARRAY]' } : {})
+          ...(videoUrls ? { videoUrls: '[VID_ARRAY]' } : {}),
+          ...(videoTitles ? { videoTitles: '[VID_TITLES]' } : {})
         }))
       })));
       slideContext = `${proposalSummary}\nCurrent slides JSON:\n${contextJson}`;
@@ -4566,6 +4575,9 @@ ${imageGenInstructions}`;
                   restoredEl.videoUrls = originalEl.videoUrls;
                   restoredEl.activeVideoIndex = originalEl.activeVideoIndex || 0;
                 }
+                if (el.videoTitles === '[VID_TITLES]' && originalEl.videoTitles) {
+                  restoredEl.videoTitles = originalEl.videoTitles;
+                }
               }
             }
 
@@ -4825,6 +4837,7 @@ ${imageGenInstructions}`;
       id: generateElementId(),
       type: 'video',
       videoUrls: [videoUrl],
+      videoTitles: [''],
       activeVideoIndex: 0,
       x: 100,
       y: 100,
@@ -7276,6 +7289,10 @@ function ElementRenderer({ element, isSelected, onMouseDown, onUpdateElement, on
       onDeleteElement(element.id);
     };
 
+    const titles = getVideoTitles(element);
+    const currentTitle = titles[activeIdx] || '';
+    const hasCarousel = urls.length > 1;
+
     return (
       <div
         style={baseStyle}
@@ -7283,43 +7300,49 @@ function ElementRenderer({ element, isSelected, onMouseDown, onUpdateElement, on
         onMouseLeave={() => setIsHovered(false)}
         onMouseDown={editMode ? (e) => onMouseDown(e, 'move') : undefined}
       >
-        <div className="relative w-full h-full bg-black rounded overflow-hidden">
-          {embedUrl ? (
-            <iframe
-              src={embedUrl}
-              className="w-full h-full"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              style={{ pointerEvents: editMode ? 'none' : 'auto' }}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-neutral-500">
-              <div className="text-center">
-                <Play className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Paste video URL in panel</p>
+        <div className="relative w-full h-full bg-black rounded overflow-hidden flex flex-col">
+          {/* Video iframe area */}
+          <div className={`relative w-full ${hasCarousel ? 'flex-1 min-h-0' : 'h-full'}`}>
+            {embedUrl ? (
+              <iframe
+                src={embedUrl}
+                className="w-full h-full"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                style={{ pointerEvents: editMode ? 'none' : 'auto' }}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-neutral-500">
+                <div className="text-center">
+                  <Play className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Paste video URL in panel</p>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Video carousel navigation */}
-          {urls.length > 1 && !editMode && (
-            <div className="absolute inset-0 pointer-events-none z-10">
+          {/* Video carousel navigation bar - below the video */}
+          {hasCarousel && !editMode && (
+            <div className="flex-shrink-0 flex items-center justify-center gap-3 py-1.5 bg-black">
               <button
-                className="pointer-events-auto absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/70 hover:bg-black/90 rounded-full flex items-center justify-center text-white transition-colors"
+                className="w-6 h-6 flex items-center justify-center text-white/70 hover:text-white transition-colors"
                 onClick={(e) => { e.stopPropagation(); onUpdateElement(element.id, { activeVideoIndex: (activeIdx - 1 + urls.length) % urls.length }); }}
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
+              <div className="text-center min-w-0">
+                {currentTitle && (
+                  <p className="text-white text-xs font-bold truncate" style={{ fontFamily: "'Inter', sans-serif" }}>{currentTitle}</p>
+                )}
+                <p className="text-white/60 text-[10px] font-medium">{activeIdx + 1} / {urls.length}</p>
+              </div>
               <button
-                className="pointer-events-auto absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/70 hover:bg-black/90 rounded-full flex items-center justify-center text-white transition-colors"
+                className="w-6 h-6 flex items-center justify-center text-white/70 hover:text-white transition-colors"
                 onClick={(e) => { e.stopPropagation(); onUpdateElement(element.id, { activeVideoIndex: (activeIdx + 1) % urls.length }); }}
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
-              <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-black/70 rounded-full text-white text-xs font-medium">
-                {activeIdx + 1}/{urls.length}
-              </div>
             </div>
           )}
 
@@ -7974,39 +7997,57 @@ function EditorPanel({ selectedElement, slide, onUpdateElement, onUpdateBackgrou
 
             {selectedElement.type === 'video' && (
               <div className="space-y-3">
-                <label className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5 block">Video URLs</label>
+                <label className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5 block">Videos</label>
                 {getVideoUrls(selectedElement).map((url, idx) => (
-                  <div key={idx} className="flex items-center gap-1.5">
-                    <span className="text-[10px] text-zinc-600 w-4 text-right flex-shrink-0">{idx + 1}.</span>
-                    <input
-                      type="text"
-                      value={url}
-                      onChange={(e) => {
-                        const newUrls = [...getVideoUrls(selectedElement)];
-                        newUrls[idx] = e.target.value;
-                        onUpdateElement(selectedElement.id, { videoUrls: newUrls });
-                      }}
-                      placeholder="YouTube or Vimeo URL"
-                      className="flex-1 px-3 py-2 bg-zinc-900/80 border border-zinc-700 rounded-lg text-white text-xs placeholder-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors"
-                    />
-                    {getVideoUrls(selectedElement).length > 1 && (
-                      <button
-                        onClick={() => {
-                          const newUrls = getVideoUrls(selectedElement).filter((_, i) => i !== idx);
-                          const newIdx = Math.min(selectedElement.activeVideoIndex || 0, newUrls.length - 1);
-                          onUpdateElement(selectedElement.id, { videoUrls: newUrls, activeVideoIndex: newIdx });
+                  <div key={idx} className="space-y-1.5 p-2 bg-zinc-900/40 rounded-lg border border-zinc-800/50">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-zinc-600 w-4 text-right flex-shrink-0">{idx + 1}.</span>
+                      <input
+                        type="text"
+                        value={url}
+                        onChange={(e) => {
+                          const newUrls = [...getVideoUrls(selectedElement)];
+                          newUrls[idx] = e.target.value;
+                          onUpdateElement(selectedElement.id, { videoUrls: newUrls });
                         }}
-                        className="p-1.5 text-zinc-600 hover:text-red-500 transition-colors flex-shrink-0"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    )}
+                        placeholder="YouTube or Vimeo URL"
+                        className="flex-1 px-3 py-2 bg-zinc-900/80 border border-zinc-700 rounded-lg text-white text-xs placeholder-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors"
+                      />
+                      {getVideoUrls(selectedElement).length > 1 && (
+                        <button
+                          onClick={() => {
+                            const newUrls = getVideoUrls(selectedElement).filter((_, i) => i !== idx);
+                            const newTitles = getVideoTitles(selectedElement).filter((_, i) => i !== idx);
+                            const newIdx = Math.min(selectedElement.activeVideoIndex || 0, newUrls.length - 1);
+                            onUpdateElement(selectedElement.id, { videoUrls: newUrls, videoTitles: newTitles, activeVideoIndex: newIdx });
+                          }}
+                          className="p-1.5 text-zinc-600 hover:text-red-500 transition-colors flex-shrink-0"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-zinc-600 w-4 flex-shrink-0"></span>
+                      <input
+                        type="text"
+                        value={getVideoTitles(selectedElement)[idx] || ''}
+                        onChange={(e) => {
+                          const newTitles = [...getVideoTitles(selectedElement)];
+                          newTitles[idx] = e.target.value;
+                          onUpdateElement(selectedElement.id, { videoTitles: newTitles });
+                        }}
+                        placeholder="Video title (optional)"
+                        className="flex-1 px-3 py-1.5 bg-zinc-900/60 border border-zinc-800 rounded-lg text-zinc-300 text-[11px] placeholder-zinc-700 focus:outline-none focus:border-zinc-600 transition-colors"
+                      />
+                    </div>
                   </div>
                 ))}
                 <button
                   onClick={() => {
                     const newUrls = [...getVideoUrls(selectedElement), ''];
-                    onUpdateElement(selectedElement.id, { videoUrls: newUrls });
+                    const newTitles = [...getVideoTitles(selectedElement), ''];
+                    onUpdateElement(selectedElement.id, { videoUrls: newUrls, videoTitles: newTitles });
                   }}
                   className="w-full py-2 border border-dashed border-zinc-700 hover:border-zinc-500 rounded-lg text-zinc-500 hover:text-zinc-300 text-xs transition-colors"
                 >

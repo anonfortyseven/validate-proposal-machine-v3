@@ -610,8 +610,11 @@ function ElementRenderer({ element }) {
 
   if (type === 'video') {
     const urls = getVideoUrls(element);
+    const titles = getVideoTitles(element);
     const [activeIdx, setActiveIdx] = useState(0);
     const embedUrl = getEmbedUrl(urls[activeIdx]);
+    const currentTitle = titles[activeIdx] || '';
+    const hasCarousel = urls.length > 1;
 
     const videoStyle = {
       position: 'absolute',
@@ -623,32 +626,37 @@ function ElementRenderer({ element }) {
 
     if (embedUrl) {
       return (
-        <div style={videoStyle} className="group">
-          <div className="relative w-full h-full">
-            <iframe
-              src={embedUrl}
-              className="w-full h-full rounded-lg"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-              allowFullScreen
-            />
-            {urls.length > 1 && (
-              <div className="absolute inset-0 pointer-events-none">
+        <div style={videoStyle}>
+          <div className="w-full h-full flex flex-col">
+            <div className={`relative w-full ${hasCarousel ? 'flex-1 min-h-0' : 'h-full'}`}>
+              <iframe
+                src={embedUrl}
+                className="w-full h-full rounded-lg"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                allowFullScreen
+              />
+            </div>
+            {hasCarousel && (
+              <div className="flex-shrink-0 flex items-center justify-center gap-3 py-1.5">
                 <button
-                  className="pointer-events-auto absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/70 hover:bg-black/90 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="w-6 h-6 flex items-center justify-center text-white/70 hover:text-white transition-colors"
                   onClick={() => setActiveIdx((activeIdx - 1 + urls.length) % urls.length)}
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
+                <div className="text-center min-w-0">
+                  {currentTitle && (
+                    <p className="text-white text-xs font-bold truncate" style={{ fontFamily: "'Inter', sans-serif" }}>{currentTitle}</p>
+                  )}
+                  <p className="text-white/60 text-[10px] font-medium">{activeIdx + 1} / {urls.length}</p>
+                </div>
                 <button
-                  className="pointer-events-auto absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/70 hover:bg-black/90 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="w-6 h-6 flex items-center justify-center text-white/70 hover:text-white transition-colors"
                   onClick={() => setActiveIdx((activeIdx + 1) % urls.length)}
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
-                <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-black/70 rounded-full text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                  {activeIdx + 1}/{urls.length}
-                </div>
               </div>
             )}
           </div>
@@ -669,6 +677,11 @@ function getVideoUrls(el) {
   if (el.videoUrls && Array.isArray(el.videoUrls)) return el.videoUrls;
   if (el.videoUrl) return [el.videoUrl];
   return [];
+}
+
+function getVideoTitles(el) {
+  if (el.videoTitles && Array.isArray(el.videoTitles)) return el.videoTitles;
+  return getVideoUrls(el).map(() => '');
 }
 
 function getEmbedUrl(url) {
