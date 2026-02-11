@@ -95,6 +95,7 @@ function PDFSlideCanvas({ slide }) {
 // PDF Element Renderer - matches ElementRenderer EXACTLY but for images uses crossOrigin
 function PDFElementRenderer({ element }) {
   const { type, x, y, width, height } = element;
+  const rotateStyle = element.rotation ? { transform: `rotate(${element.rotation}deg)` } : {};
 
   if (type === 'text') {
     const textStyle = {
@@ -123,6 +124,7 @@ function PDFElementRenderer({ element }) {
           ? 'flex-end'
           : 'flex-start',
       lineHeight: 1.2,
+      ...rotateStyle,
     };
 
     return (
@@ -143,6 +145,7 @@ function PDFElementRenderer({ element }) {
       height: height,
       backgroundColor: element.color || '#FFFFFF',
       borderRadius: element.shapeType === 'ellipse' ? '50%' : element.borderRadius || 0,
+      ...rotateStyle,
     };
     return <div style={shapeStyle} />;
   }
@@ -156,6 +159,7 @@ function PDFElementRenderer({ element }) {
       height: height,
       overflow: 'hidden',
       borderRadius: element.frameStyle === 'rounded' ? 8 : 0,
+      ...rotateStyle,
     };
 
     // For PDF, always use static image (not video)
@@ -200,6 +204,7 @@ function PDFElementRenderer({ element }) {
       background: '#18181B',
       borderRadius: 8,
       overflow: 'hidden',
+      ...rotateStyle,
     };
 
     const playSize = Math.min(width, height) * 0.2;
@@ -505,6 +510,7 @@ const SlideRenderer = React.forwardRef(function SlideRenderer({ slide, container
 // ============================================
 function ElementRenderer({ element }) {
   const { type, x, y, width, height } = element;
+  const rotateStyle = element.rotation ? { transform: `rotate(${element.rotation}deg)` } : {};
 
   if (type === 'text') {
     const textStyle = {
@@ -533,6 +539,7 @@ function ElementRenderer({ element }) {
           ? 'flex-end'
           : 'flex-start',
       lineHeight: 1.2,
+      ...rotateStyle,
     };
 
     return (
@@ -557,6 +564,7 @@ function ElementRenderer({ element }) {
       height: height,
       backgroundColor: element.color || '#FFFFFF',
       borderRadius: element.shapeType === 'ellipse' ? '50%' : element.borderRadius || 0,
+      ...rotateStyle,
     };
     return <div style={shapeStyle} />;
   }
@@ -570,6 +578,7 @@ function ElementRenderer({ element }) {
       height: height,
       overflow: 'hidden',
       borderRadius: element.frameStyle === 'rounded' ? 8 : 0,
+      ...rotateStyle,
     };
 
     if (element.videoSrc) {
@@ -622,6 +631,7 @@ function ElementRenderer({ element }) {
       top: y,
       width: width,
       height: height,
+      ...rotateStyle,
     };
 
     if (embedUrl) {

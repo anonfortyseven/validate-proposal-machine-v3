@@ -2085,6 +2085,7 @@ export default function ValidateProposalMachine() {
           const h = element.height;
 
           const heightStyle = element.type === 'text' ? `min-height: ${h}px;` : `height: ${h}px;`;
+          const rotationStyle = element.rotation ? `transform: rotate(${element.rotation}deg);` : '';
           el.style.cssText = `
             position: absolute;
             left: ${x}px;
@@ -2092,6 +2093,7 @@ export default function ValidateProposalMachine() {
             width: ${w}px;
             ${heightStyle}
             box-sizing: border-box;
+            ${rotationStyle}
           `;
 
           if (element.type === 'text') {
@@ -4949,10 +4951,45 @@ ${imageGenInstructions}`;
         selectedElementIds.forEach(id => deleteElement(id));
         setSelectedElementIds([]);
       }
+
+      // Rotate selected elements: hold R + arrow keys
+      // R + Left/Right = rotate 15°, R + Shift + Left/Right = rotate 1°
+      if (e.key === 'r' && !e.metaKey && !e.ctrlKey && selectedElementIds.length > 0) {
+        // Track that R is held
+        window.__rotateKeyHeld = true;
+      }
+      if (window.__rotateKeyHeld && selectedElementIds.length > 0) {
+        const step = e.shiftKey ? 1 : 15;
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          const direction = e.key === 'ArrowLeft' ? -step : step;
+          updateSlides(prev => prev.map((slide, idx) => {
+            if (idx !== currentSlideIndex) return slide;
+            return {
+              ...slide,
+              elements: slide.elements.map(el => {
+                if (!selectedElementIds.includes(el.id)) return el;
+                const current = el.rotation || 0;
+                return { ...el, rotation: (current + direction + 360) % 360 };
+              })
+            };
+          }));
+        }
+      }
+    };
+
+    const handleKeyUp = (e) => {
+      if (e.key === 'r') {
+        window.__rotateKeyHeld = false;
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
   }, [undo, redo, selectedElementIds, deleteElement, slides.length, currentSlideIndex, updateSlides]);
 
   const addSlide = () => {
@@ -7076,7 +7113,8 @@ function ElementRenderer({ element, isSelected, onMouseDown, onUpdateElement, on
     top: element.y,
     width: element.width,
     height: element.height,
-    cursor: isSelected ? 'move' : 'pointer'
+    cursor: isSelected ? 'move' : 'pointer',
+    ...(element.rotation ? { transform: `rotate(${element.rotation}deg)` } : {})
   };
 
   if (element.type === 'shape') {
