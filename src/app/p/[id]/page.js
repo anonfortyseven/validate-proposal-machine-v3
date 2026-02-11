@@ -37,12 +37,17 @@ export async function generateMetadata({ params }) {
     };
   }
 
+  const projectName = share.projectName && share.projectName !== 'Untitled Proposal' ? share.projectName : '';
+  const clientName = share.clientName || '';
+  const displayName = projectName || clientName || 'Proposal';
+  const description = clientName ? `Creative proposal for ${clientName}` : 'Creative proposal by VALIDATE';
+
   return {
-    title: `${share.projectName} | VALIDATE`,
-    description: `Creative proposal for ${share.clientName || 'client'}`,
+    title: `${displayName} | VALIDATE`,
+    description,
     openGraph: {
-      title: `${share.projectName} - Proposal by VALIDATE`,
-      description: `Creative proposal for ${share.clientName || 'client'}`,
+      title: `${displayName} - Proposal by VALIDATE`,
+      description,
       type: 'website',
     },
   };
