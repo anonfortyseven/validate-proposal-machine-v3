@@ -1,9 +1,10 @@
 'use client'
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Sparkles, Send, RefreshCw, Plus, ArrowLeft, X, AlertCircle, Type, Image, Trash2, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Upload, Check, Cloud, Save, FolderOpen, Folder, Clock, Undo2, Redo2, Archive, ArchiveRestore, Eye, EyeOff, Menu, Edit3, FolderPlus, Download, MoreVertical, Grid, List, Search, ImageIcon, Move, Crop, ZoomIn, ZoomOut, Play, Video, FileDown, Link2, Copy, Lock, LogOut, Share2, User, Shield, Star } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Sparkles, Send, RefreshCw, Plus, ArrowLeft, X, AlertCircle, Type, Image, Trash2, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Upload, Check, Cloud, Save, FolderOpen, Folder, Clock, Undo2, Redo2, Archive, ArchiveRestore, Eye, EyeOff, Menu, Edit3, FolderPlus, Download, MoreVertical, Grid, List, Search, ImageIcon, Move, Crop, ZoomIn, ZoomOut, Play, Video, FileDown, Link2, Copy, Lock, LogOut, Share2, User, Shield, Star, HelpCircle } from 'lucide-react';
 import { useAuth } from './LoginGate';
 import ShareModal from './ShareModal';
+import HelpModal from './HelpModal';
 import { BRAND_GUIDELINES, BRAND_GUIDELINES_SHORT, COLORS as BRAND_COLORS, TYPOGRAPHY, FONTS } from '../config/brandGuidelines';
 import { DESIGN_RULES, DESIGN_RULES_SHORT, IMAGE_STYLE_TOKENS, SLIDE_TEMPLATES } from '../config/designRules';
 import { validateProposal, isProposalValid, getValidationSummary } from '../utils/slideValidator';
@@ -1059,6 +1060,7 @@ export default function ValidateProposalMachine() {
 
   // Share state
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
   // Export PDF modal state
   const [showExportModal, setShowExportModal] = useState(false);
@@ -5200,6 +5202,7 @@ ${imageGenInstructions}`;
         onShare={() => setShowShareModal(true)}
         onSetExpiration={() => setShowExpirationModal(true)}
         expirationDays={proposalExpirationDays}
+        onShowHelp={() => setShowHelpModal(true)}
       />
       
       {/* Image Library Modal */}
@@ -5331,6 +5334,11 @@ ${imageGenInstructions}`;
           onContactPhoneChange={setContactPhone}
           onClose={() => setShowShareModal(false)}
         />
+      )}
+
+      {/* Help Modal */}
+      {showHelpModal && (
+        <HelpModal onClose={() => setShowHelpModal(false)} />
       )}
 
       {/* Export PDF Modal */}
@@ -5524,7 +5532,7 @@ ${imageGenInstructions}`;
 // HEADER - Cinematic Editorial Design
 // ============================================
 // EXPIRATION MODAL
-function Header({ onNew, hasProposal, saveStatus, projectName, onProjectNameChange, onShowProjects, onShowCaseStudies, onShowSaveAs, onShowImageLibrary, onShowSavedSlides, onUndo, onRedo, canUndo, canRedo, isMobile, onMobileInput, onExportPdf, isExporting, exportProgress, editingMode, onShare, onSetExpiration, expirationDays }) {
+function Header({ onNew, hasProposal, saveStatus, projectName, onProjectNameChange, onShowProjects, onShowCaseStudies, onShowSaveAs, onShowImageLibrary, onShowSavedSlides, onUndo, onRedo, canUndo, canRedo, isMobile, onMobileInput, onExportPdf, isExporting, exportProgress, editingMode, onShare, onSetExpiration, expirationDays, onShowHelp }) {
   const auth = useAuth();
 
   if (isMobile) {
@@ -5567,6 +5575,9 @@ function Header({ onNew, hasProposal, saveStatus, projectName, onProjectNameChan
               </button>
             </>
           )}
+          <button onClick={onShowHelp} className="p-2.5 bg-bg-tertiary border border-border rounded-lg hover:border-border-strong transition-all" title="Help">
+            <HelpCircle className="w-4 h-4 text-text-tertiary" />
+          </button>
           <button onClick={() => auth?.logout()} className="p-2.5 bg-bg-tertiary border border-border rounded-lg hover:border-accent/50 transition-all" title="Log Out">
             <LogOut className="w-4 h-4 text-text-tertiary" />
           </button>
@@ -5744,6 +5755,16 @@ function Header({ onNew, hasProposal, saveStatus, projectName, onProjectNameChan
             </button>
           </>
         )}
+
+        {/* Help button - always visible */}
+        <button
+          onClick={onShowHelp}
+          className="flex items-center gap-2 px-3 py-1.5 hover:bg-surface-hover rounded-lg text-sm group transition-colors"
+          title="Help"
+        >
+          <HelpCircle className="w-4 h-4 text-text-tertiary group-hover:text-text-secondary" />
+          <span className="text-text-secondary group-hover:text-text-primary">Help</span>
+        </button>
 
         {/* Logout button - always visible */}
         <button
