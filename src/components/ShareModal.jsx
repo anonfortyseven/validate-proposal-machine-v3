@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { X, Link2, RefreshCw, Check, Copy, Lock, Clock, AlertCircle, User, Shield, Share2, FileDown } from 'lucide-react';
 
-export default function ShareModal({ projectName, clientName, slides, contactName, contactEmail, contactPhone, onContactNameChange, onContactEmailChange, onContactPhoneChange, onClose }) {
+export default function ShareModal({ projectName, clientName, slides, accentColor, contactName, contactEmail, contactPhone, onContactNameChange, onContactEmailChange, onContactPhoneChange, onClose }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [copied, setCopied] = useState(false);
@@ -32,6 +32,7 @@ export default function ShareModal({ projectName, clientName, slides, contactNam
           projectName: projectName || '',
           clientName: clientName || '',
           slides,
+          accentColor: accentColor || '#C41E3A',
           password: usePassword ? password : null,
           expiresInDays,
           contactName: contactName || '',

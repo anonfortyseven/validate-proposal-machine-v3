@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Sparkles, Send, RefreshCw, Plus, ArrowLeft, X, AlertCircle, Type, Image, Trash2, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Upload, Check, Cloud, Save, FolderOpen, Folder, Clock, Undo2, Redo2, Archive, ArchiveRestore, Eye, EyeOff, Menu, Edit3, FolderPlus, Download, MoreVertical, Grid, List, Search, ImageIcon, Move, Crop, ZoomIn, ZoomOut, Play, Video, FileDown, Link2, Copy, Lock, LogOut, Share2, User, Shield, Star, HelpCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Sparkles, Send, RefreshCw, Plus, ArrowLeft, X, AlertCircle, Type, Image, Trash2, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Upload, Check, Cloud, Save, FolderOpen, Folder, Clock, Undo2, Redo2, Archive, ArchiveRestore, Eye, EyeOff, Menu, Edit3, FolderPlus, Download, MoreVertical, Grid, List, Search, ImageIcon, Move, Crop, ZoomIn, ZoomOut, Play, Video, FileDown, Link2, Copy, Lock, LogOut, Share2, User, Shield, Star, HelpCircle, Palette } from 'lucide-react';
 import { useAuth } from './LoginGate';
 import ShareModal from './ShareModal';
 import HelpModal from './HelpModal';
@@ -1069,6 +1069,9 @@ export default function ValidateProposalMachine() {
   const [proposalExpirationDays, setProposalExpirationDays] = useState(null); // null = no expiration set
   const [showExpirationModal, setShowExpirationModal] = useState(false);
 
+  // Accent color state (global color shift for accent elements)
+  const [accentColor, setAccentColor] = useState('#C41E3A');
+
   // Mobile-specific state
   const [mobileInputOpen, setMobileInputOpen] = useState(false);
   const [mobileEditorOpen, setMobileEditorOpen] = useState(false);
@@ -1507,6 +1510,7 @@ export default function ValidateProposalMachine() {
   const contactNameRef = useRef(contactName);
   const contactEmailRef = useRef(contactEmail);
   const contactPhoneRef = useRef(contactPhone);
+  const accentColorRef = useRef(accentColor);
 
   // Keep refs updated
   useEffect(() => { slidesRef.current = slides; }, [slides]);
@@ -1516,6 +1520,7 @@ export default function ValidateProposalMachine() {
   useEffect(() => { currentProjectIdRef.current = currentProjectId; }, [currentProjectId]);
   useEffect(() => { originalNotesRef.current = originalNotes; }, [originalNotes]);
   useEffect(() => { expirationDaysRef.current = proposalExpirationDays; }, [proposalExpirationDays]);
+  useEffect(() => { accentColorRef.current = accentColor; }, [accentColor]);
   useEffect(() => { contactNameRef.current = contactName; }, [contactName]);
   useEffect(() => { contactEmailRef.current = contactEmail; }, [contactEmail]);
   useEffect(() => { contactPhoneRef.current = contactPhone; }, [contactPhone]);
@@ -1533,6 +1538,7 @@ export default function ValidateProposalMachine() {
       const currentContactName = contactNameRef.current;
       const currentContactEmail = contactEmailRef.current;
       const currentContactPhone = contactPhoneRef.current;
+      const currentAccentColor = accentColorRef.current;
 
       if (!currentSlides.length || !projectId) return;
 
@@ -1547,6 +1553,7 @@ export default function ValidateProposalMachine() {
           contactName: currentContactName,
           contactEmail: currentContactEmail,
           contactPhone: currentContactPhone,
+          accentColor: currentAccentColor,
           savedAt: new Date().toISOString()
         };
 
@@ -1606,6 +1613,7 @@ export default function ValidateProposalMachine() {
           contactName,
           contactEmail,
           contactPhone,
+          accentColor,
           savedAt: new Date().toISOString()
         };
         // Save to Supabase only
@@ -1631,6 +1639,7 @@ export default function ValidateProposalMachine() {
         setContactName(data.contactName || '');
         setContactEmail(data.contactEmail || '');
         setContactPhone(data.contactPhone || '');
+        setAccentColor(data.accentColor || '#C41E3A');
         setCurrentProjectId(projectId);
         setEditingMode('proposal'); // Loading a project means editing a proposal
         setCurrentCaseStudyId(null);
@@ -1661,6 +1670,7 @@ export default function ValidateProposalMachine() {
         contactName,
         contactEmail,
         contactPhone,
+        accentColor,
         savedAt: new Date().toISOString()
       };
 
@@ -2492,6 +2502,23 @@ export default function ValidateProposalMachine() {
     } finally {
       setIsExporting(false);
     }
+  };
+
+  // Shift accent color globally across all slides
+  const shiftAccentColor = (newColor) => {
+    const oldColor = accentColor.toUpperCase();
+    const newUpper = newColor.toUpperCase();
+    if (oldColor === newUpper) return;
+
+    setSlides(prev => prev.map(slide => ({
+      ...slide,
+      elements: slide.elements.map(el =>
+        el.color && el.color.toUpperCase() === oldColor
+          ? { ...el, color: newColor }
+          : el
+      )
+    })));
+    setAccentColor(newColor);
   };
 
   // Handle setting proposal expiration - adds expiration text to last slide
@@ -4342,7 +4369,7 @@ When user requests layout changes:
 Slide format: { name, archetype, background: { color: "#000000" }, elements: [] }
 Text: { type: "text", content, x, y, width, height, fontSize, fontWeight, fontFamily, color, align }
 Shape: { type: "shape", shapeType: "rect"|"ellipse", x, y, width, height, color, borderRadius }
-Canvas: 900x506px. Colors: black=#000000, gray=#71717A, text=#D4D4D8, white=#FFFFFF, accent=#C41E3A
+Canvas: 900x506px. Colors: black=#000000, gray=#71717A, text=#D4D4D8, white=#FFFFFF, accent=${accentColor}
 Fonts: "Inter", "Bebas Neue", "JetBrains Mono". Min font: 11px.
 ${imageGenInstructions}`
       : `${BRAND_GUIDELINES_SHORT}
@@ -4413,7 +4440,7 @@ When user requests layout changes:
 Slide format: { name, archetype, background: { color, image, opacity }, elements: [] }
 Text: { type: "text", content, x, y, width, height, fontSize, fontWeight, fontFamily, color, align }
 Shape: { type: "shape", shapeType: "rect"|"ellipse", x, y, width, height, color, borderRadius }
-Canvas: 900x506px. Colors: black=#000000, gray=#71717A, text=#D4D4D8, white=#FFFFFF, accent=#C41E3A
+Canvas: 900x506px. Colors: black=#000000, gray=#71717A, text=#D4D4D8, white=#FFFFFF, accent=${accentColor}
 Fonts: "Inter", "Bebas Neue", "JetBrains Mono". Min font: 11px.
 ${imageGenInstructions}`;
 
@@ -4738,6 +4765,7 @@ ${imageGenInstructions}`;
               contactName,
               contactEmail,
               contactPhone,
+              accentColor,
               savedAt: new Date().toISOString()
             };
             // Save to Supabase only
@@ -5006,6 +5034,7 @@ ${imageGenInstructions}`;
           contactName,
           contactEmail,
           contactPhone,
+          accentColor,
           savedAt: new Date().toISOString()
         };
         // Save to Supabase only
@@ -5022,6 +5051,7 @@ ${imageGenInstructions}`;
     setProposal(null);
     setSlides([]);
     setProposalExpirationDays(null); // Reset expiration when creating new
+    setAccentColor('#C41E3A'); // Reset accent color
     setHistory([]);
     setHistoryIndex(-1);
     setCurrentSlideIndex(0);
@@ -5053,6 +5083,7 @@ ${imageGenInstructions}`;
           contactName,
           contactEmail,
           contactPhone,
+          accentColor,
           savedAt: new Date().toISOString()
         };
         await projectStorage.saveProject(currentProjectId, saveData);
@@ -5080,6 +5111,7 @@ ${imageGenInstructions}`;
     setProposal(null);
     setSlides([blankSlide]);
     setProposalExpirationDays(null);
+    setAccentColor('#C41E3A');
     setHistory([JSON.stringify([blankSlide])]);
     setHistoryIndex(0);
     setCurrentSlideIndex(0);
@@ -5203,6 +5235,8 @@ ${imageGenInstructions}`;
         onSetExpiration={() => setShowExpirationModal(true)}
         expirationDays={proposalExpirationDays}
         onShowHelp={() => setShowHelpModal(true)}
+        accentColor={accentColor}
+        onShiftAccentColor={shiftAccentColor}
       />
       
       {/* Image Library Modal */}
@@ -5326,6 +5360,7 @@ ${imageGenInstructions}`;
           projectName={projectName}
           clientName={clientName}
           slides={slides}
+          accentColor={accentColor}
           contactName={contactName}
           contactEmail={contactEmail}
           contactPhone={contactPhone}
@@ -5532,7 +5567,9 @@ ${imageGenInstructions}`;
 // HEADER - Cinematic Editorial Design
 // ============================================
 // EXPIRATION MODAL
-function Header({ onNew, hasProposal, saveStatus, projectName, onProjectNameChange, onShowProjects, onShowCaseStudies, onShowSaveAs, onShowImageLibrary, onShowSavedSlides, onUndo, onRedo, canUndo, canRedo, isMobile, onMobileInput, onExportPdf, isExporting, exportProgress, editingMode, onShare, onSetExpiration, expirationDays, onShowHelp }) {
+function Header({ onNew, hasProposal, saveStatus, projectName, onProjectNameChange, onShowProjects, onShowCaseStudies, onShowSaveAs, onShowImageLibrary, onShowSavedSlides, onUndo, onRedo, canUndo, canRedo, isMobile, onMobileInput, onExportPdf, isExporting, exportProgress, editingMode, onShare, onSetExpiration, expirationDays, onShowHelp, accentColor, onShiftAccentColor }) {
+  const [showAccentPicker, setShowAccentPicker] = useState(false);
+  const accentPickerRef = useRef(null);
   const auth = useAuth();
 
   if (isMobile) {
@@ -5743,6 +5780,57 @@ function Header({ onNew, hasProposal, saveStatus, projectName, onProjectNameChan
                   {expirationDays ? `${expirationDays}d` : 'Expires'}
                 </span>
               </button>
+
+              {/* Accent Color Picker */}
+              <div className="relative" ref={accentPickerRef}>
+                <button
+                  onClick={() => setShowAccentPicker(!showAccentPicker)}
+                  className="flex items-center gap-2 px-3 py-1.5 hover:bg-surface-hover rounded-lg text-sm group transition-colors"
+                  title="Accent Color"
+                >
+                  <div className="w-4 h-4 rounded-full border border-zinc-600 group-hover:border-zinc-400 transition-colors" style={{ backgroundColor: accentColor }} />
+                  <span className="text-text-secondary group-hover:text-text-primary">Accent</span>
+                </button>
+                {showAccentPicker && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowAccentPicker(false)} />
+                    <div className="absolute right-0 top-full mt-2 z-50 bg-bg-elevated border border-border rounded-xl p-3 shadow-xl min-w-[200px]">
+                      <div className="text-[10px] font-mono text-text-muted uppercase tracking-wider mb-2">Accent Color</div>
+                      <div className="flex gap-1.5 mb-3">
+                        {[
+                          { color: '#C41E3A', name: 'Red' },
+                          { color: '#2563EB', name: 'Blue' },
+                          { color: '#059669', name: 'Green' },
+                          { color: '#0891B2', name: 'Teal' },
+                          { color: '#D97706', name: 'Amber' },
+                          { color: '#7C3AED', name: 'Purple' },
+                        ].map(preset => (
+                          <button
+                            key={preset.color}
+                            onClick={() => { onShiftAccentColor(preset.color); setShowAccentPicker(false); }}
+                            className={`w-7 h-7 rounded-lg border-2 transition-all hover:scale-110 ${
+                              accentColor.toUpperCase() === preset.color.toUpperCase()
+                                ? 'border-white shadow-[0_0_8px_rgba(255,255,255,0.3)]'
+                                : 'border-transparent hover:border-zinc-500'
+                            }`}
+                            style={{ backgroundColor: preset.color }}
+                            title={preset.name}
+                          />
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="text-[10px] text-text-muted uppercase tracking-wider">Custom</label>
+                        <input
+                          type="color"
+                          value={accentColor}
+                          onChange={(e) => onShiftAccentColor(e.target.value)}
+                          className="w-8 h-8 rounded-lg cursor-pointer border border-zinc-700 bg-transparent"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Divider */}

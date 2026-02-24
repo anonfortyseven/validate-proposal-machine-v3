@@ -156,7 +156,7 @@ export async function POST(request) {
     }
 
     // Create new share
-    const { projectId, projectName, clientName, slides, password, expiresInDays, contactName, contactEmail, contactPhone, allowPdfDownload } = body;
+    const { projectId, projectName, clientName, slides, accentColor, password, expiresInDays, contactName, contactEmail, contactPhone, allowPdfDownload } = body;
 
     if (!slides || !Array.isArray(slides)) {
       return NextResponse.json({ error: 'Slides array required' }, { status: 400 });
@@ -179,6 +179,7 @@ export async function POST(request) {
       contactEmail: contactEmail || '',
       contactPhone: contactPhone || '',
       allowPdfDownload: allowPdfDownload !== false,
+      accentColor: accentColor || '#C41E3A',
       slides
     };
 

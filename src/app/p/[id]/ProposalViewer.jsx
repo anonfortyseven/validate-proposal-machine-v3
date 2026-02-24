@@ -26,6 +26,14 @@ const isLogoImage = (src) => {
 const CANVAS_WIDTH = 900;
 const CANVAS_HEIGHT = 506;
 
+// Helper to convert hex color to rgba
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 // ============================================
 // PDF SLIDE CANVAS - Renders slide for PDF capture
 // Uses the SAME ElementRenderer as web view for identical output
@@ -286,14 +294,14 @@ function PDFElementRenderer({ element }) {
 // ============================================
 // CINEMATIC CORNER ACCENTS
 // ============================================
-function CornerAccents({ className = '' }) {
+function CornerAccents({ className = '', accentColor = '#C41E3A' }) {
   return (
     <div className={`pointer-events-none hidden sm:block ${className}`}>
       {/* Top Left */}
       <div className="fixed top-6 left-6 w-16 h-16 opacity-20">
         <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-zinc-500 to-transparent" />
         <div className="absolute top-0 left-0 w-px h-full bg-gradient-to-b from-zinc-500 to-transparent" />
-        <div className="absolute top-2 left-2 w-1 h-1 bg-[#C41E3A] rounded-full" style={{ boxShadow: '0 0 8px rgba(196, 30, 58, 0.6)' }} />
+        <div className="absolute top-2 left-2 w-1 h-1 rounded-full" style={{ backgroundColor: accentColor, boxShadow: `0 0 8px ${hexToRgba(accentColor, 0.6)}` }} />
       </div>
       {/* Top Right */}
       <div className="fixed top-6 right-6 w-16 h-16 opacity-20">
@@ -309,7 +317,7 @@ function CornerAccents({ className = '' }) {
       <div className="fixed bottom-6 right-6 w-16 h-16 opacity-20">
         <div className="absolute bottom-0 right-0 w-full h-px bg-gradient-to-l from-zinc-500 to-transparent" />
         <div className="absolute bottom-0 right-0 w-px h-full bg-gradient-to-t from-zinc-500 to-transparent" />
-        <div className="absolute bottom-2 right-2 w-1 h-1 bg-[#C41E3A] rounded-full" style={{ boxShadow: '0 0 8px rgba(196, 30, 58, 0.6)' }} />
+        <div className="absolute bottom-2 right-2 w-1 h-1 rounded-full" style={{ backgroundColor: accentColor, boxShadow: `0 0 8px ${hexToRgba(accentColor, 0.6)}` }} />
       </div>
     </div>
   );
@@ -339,7 +347,7 @@ function AtmosphericBackground() {
 // ============================================
 // SCROLL PROGRESS INDICATOR
 // ============================================
-function ScrollProgress() {
+function ScrollProgress({ accentColor = '#C41E3A' }) {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
@@ -356,8 +364,8 @@ function ScrollProgress() {
   return (
     <div className="fixed top-0 left-0 right-0 h-[2px] z-50 bg-zinc-900">
       <div
-        className="h-full bg-gradient-to-r from-[#C41E3A] to-[#ff4d6a] transition-all duration-150 ease-out"
-        style={{ width: `${progress}%` }}
+        className="h-full transition-all duration-150 ease-out"
+        style={{ width: `${progress}%`, background: `linear-gradient(to right, ${accentColor}, ${accentColor}88)` }}
       />
     </div>
   );
@@ -898,7 +906,7 @@ function LoadingState() {
       <AtmosphericBackground />
       <div className="relative z-10">
         <div className="w-8 h-8 mx-auto">
-          <div className="w-full h-full border border-zinc-800 border-t-[#C41E3A] rounded-full animate-spin" />
+          <div className="w-full h-full border border-zinc-800 rounded-full animate-spin" style={{ borderTopColor: '#C41E3A' }} />
         </div>
       </div>
     </div>
@@ -908,7 +916,7 @@ function LoadingState() {
 // ============================================
 // CINEMATIC INTRO SEQUENCE - GEOMETRIC GRID EDITION
 // ============================================
-function CinematicIntro({ clientName, projectName: rawProjectName, onComplete }) {
+function CinematicIntro({ clientName, projectName: rawProjectName, onComplete, accentColor = '#C41E3A' }) {
   // Treat "Untitled Proposal" as empty (backward compat with old shares)
   const projectName = rawProjectName && rawProjectName !== 'Untitled Proposal' ? rawProjectName : '';
   const [phase, setPhase] = useState(0);
@@ -979,10 +987,11 @@ function CinematicIntro({ clientName, projectName: rawProjectName, onComplete })
           );
         })}
 
-        {/* Red scan line - horizontal sweep */}
+        {/* Accent scan line - horizontal sweep */}
         <div
-          className="absolute h-[2px] bg-gradient-to-r from-transparent via-[#C41E3A] to-transparent transition-all ease-in-out"
+          className="absolute h-[2px] transition-all ease-in-out"
           style={{
+            background: `linear-gradient(to right, transparent, ${accentColor}, transparent)`,
             width: '100vw',
             top: '50%',
             left: phase >= 2 ? '100%' : '-100%',
@@ -990,7 +999,7 @@ function CinematicIntro({ clientName, projectName: rawProjectName, onComplete })
             transitionDuration: '1200ms',
             transitionDelay: phase >= 2 ? '0ms' : '0ms',
             opacity: phase >= 3 ? 0 : 0.8,
-            boxShadow: '0 0 30px 10px rgba(196, 30, 58, 0.3)',
+            boxShadow: `0 0 30px 10px ${hexToRgba(accentColor, 0.3)}`,
           }}
         />
 
@@ -1018,13 +1027,14 @@ function CinematicIntro({ clientName, projectName: rawProjectName, onComplete })
             }}
           />
           <div
-            className="absolute top-[-3px] left-[-3px] w-[7px] h-[7px] bg-[#C41E3A] transition-all ease-out"
+            className="absolute top-[-3px] left-[-3px] w-[7px] h-[7px] transition-all ease-out"
             style={{
+              backgroundColor: accentColor,
               opacity: phase >= 2 ? 1 : 0,
               transform: phase >= 2 ? 'scale(1)' : 'scale(0)',
               transitionDuration: '300ms',
               transitionDelay: '400ms',
-              boxShadow: '0 0 20px 4px rgba(196, 30, 58, 0.6)',
+              boxShadow: `0 0 20px 4px ${hexToRgba(accentColor, 0.6)}`,
             }}
           />
         </div>
@@ -1100,13 +1110,14 @@ function CinematicIntro({ clientName, projectName: rawProjectName, onComplete })
             }}
           />
           <div
-            className="absolute bottom-[-3px] right-[-3px] w-[7px] h-[7px] bg-[#C41E3A] transition-all ease-out"
+            className="absolute bottom-[-3px] right-[-3px] w-[7px] h-[7px] transition-all ease-out"
             style={{
+              backgroundColor: accentColor,
               opacity: phase >= 2 ? 1 : 0,
               transform: phase >= 2 ? 'scale(1)' : 'scale(0)',
               transitionDuration: '300ms',
               transitionDelay: '500ms',
-              boxShadow: '0 0 20px 4px rgba(196, 30, 58, 0.6)',
+              boxShadow: `0 0 20px 4px ${hexToRgba(accentColor, 0.6)}`,
             }}
           />
         </div>
@@ -1135,15 +1146,16 @@ function CinematicIntro({ clientName, projectName: rawProjectName, onComplete })
           />
         </div>
 
-        {/* Red accent bar - expands from center */}
+        {/* Accent bar - expands from center */}
         <div
-          className="my-4 sm:my-8 h-[2px] sm:h-[3px] bg-[#C41E3A] transition-all ease-out"
+          className="my-4 sm:my-8 h-[2px] sm:h-[3px] transition-all ease-out"
           style={{
+            backgroundColor: accentColor,
             width: phase >= 3 ? (phase >= 6 ? '0px' : '120px') : '0px',
             opacity: phase >= 3 ? (phase >= 6 ? 0 : 1) : 0,
             transitionDuration: '600ms',
             transitionDelay: '200ms',
-            boxShadow: '0 0 20px 2px rgba(196, 30, 58, 0.5)',
+            boxShadow: `0 0 20px 2px ${hexToRgba(accentColor, 0.5)}`,
           }}
         />
 
@@ -1224,16 +1236,17 @@ function CinematicIntro({ clientName, projectName: rawProjectName, onComplete })
         }}
       />
 
-      {/* Small red square accent */}
+      {/* Small accent square */}
       <div
-        className="absolute top-[30%] right-[15%] bg-[#C41E3A] transition-all ease-out hidden sm:block"
+        className="absolute top-[30%] right-[15%] transition-all ease-out hidden sm:block"
         style={{
+          backgroundColor: accentColor,
           width: phase >= 3 ? '8px' : '0px',
           height: phase >= 3 ? '8px' : '0px',
           opacity: phase >= 6 ? 0 : 0.8,
           transitionDuration: '400ms',
           transitionDelay: '800ms',
-          boxShadow: '0 0 15px 3px rgba(196, 30, 58, 0.4)',
+          boxShadow: `0 0 15px 3px ${hexToRgba(accentColor, 0.4)}`,
         }}
       />
 
@@ -1659,6 +1672,7 @@ export default function ProposalViewer({ share, hasPassword, shareId }) {
   }
 
   const slides = shareData.slides || [];
+  const viewerAccentColor = shareData.accentColor || '#C41E3A';
 
   // Show cinematic intro after data loads
   if (showIntro) {
@@ -1667,6 +1681,7 @@ export default function ProposalViewer({ share, hasPassword, shareId }) {
         clientName={shareData.clientName}
         projectName={shareData.projectName}
         onComplete={handleIntroComplete}
+        accentColor={viewerAccentColor}
       />
     );
   }
@@ -1674,8 +1689,8 @@ export default function ProposalViewer({ share, hasPassword, shareId }) {
   return (
     <div className="min-h-screen bg-black relative overflow-x-hidden">
       <AtmosphericBackground />
-      <CornerAccents />
-      <ScrollProgress />
+      <CornerAccents accentColor={viewerAccentColor} />
+      <ScrollProgress accentColor={viewerAccentColor} />
 
       {/* Cinematic Header */}
       <header
