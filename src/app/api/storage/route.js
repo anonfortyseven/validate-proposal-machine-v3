@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { validateTokenFromRequest } from '@/lib/authTokens';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -9,8 +10,23 @@ const supabaseHeaders = {
   'Authorization': `Bearer ${SUPABASE_KEY}`
 };
 
+// Paths that are global (not namespaced per user)
+const GLOBAL_PREFIXES = ['shares/', 'assets/'];
+
+function namespacePath(path, userId) {
+  if (GLOBAL_PREFIXES.some(p => path.startsWith(p))) {
+    return path;
+  }
+  return `${userId}/${path}`;
+}
+
 // GET - Load file from Supabase
 export async function GET(request) {
+  const auth = validateTokenFromRequest(request);
+  if (!auth.valid) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const path = searchParams.get('path');
@@ -19,8 +35,10 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Path required' }, { status: 400 });
     }
 
+    const namespacedPath = namespacePath(path, auth.userId);
+
     const response = await fetch(
-      `${SUPABASE_URL}/storage/v1/object/public/${PROJECTS_BUCKET}/${path}?t=${Date.now()}`,
+      `${SUPABASE_URL}/storage/v1/object/public/${PROJECTS_BUCKET}/${namespacedPath}?t=${Date.now()}`,
       {
         headers: supabaseHeaders,
         cache: 'no-store'
@@ -41,6 +59,11 @@ export async function GET(request) {
 
 // POST - Save file to Supabase
 export async function POST(request) {
+  const auth = validateTokenFromRequest(request);
+  if (!auth.valid) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { path, data } = await request.json();
 
@@ -48,8 +71,10 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Path and data required' }, { status: 400 });
     }
 
+    const namespacedPath = namespacePath(path, auth.userId);
+
     const response = await fetch(
-      `${SUPABASE_URL}/storage/v1/object/${PROJECTS_BUCKET}/${path}`,
+      `${SUPABASE_URL}/storage/v1/object/${PROJECTS_BUCKET}/${namespacedPath}`,
       {
         method: 'POST',
         headers: {
@@ -77,6 +102,11 @@ export async function POST(request) {
 
 // DELETE - Delete file from Supabase
 export async function DELETE(request) {
+  const auth = validateTokenFromRequest(request);
+  if (!auth.valid) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     // Support both query params and body for path
     const { searchParams } = new URL(request.url);
@@ -96,8 +126,10 @@ export async function DELETE(request) {
       return NextResponse.json({ error: 'Path required' }, { status: 400 });
     }
 
+    const namespacedPath = namespacePath(path, auth.userId);
+
     const response = await fetch(
-      `${SUPABASE_URL}/storage/v1/object/${PROJECTS_BUCKET}/${path}`,
+      `${SUPABASE_URL}/storage/v1/object/${PROJECTS_BUCKET}/${namespacedPath}`,
       {
         method: 'DELETE',
         headers: supabaseHeaders

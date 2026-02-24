@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { validateTokenFromRequest } from '@/lib/authTokens';
 
 // Allow large file uploads (up to 200MB) and longer execution
 export const maxDuration = 60;
@@ -9,9 +10,15 @@ const IMAGES_BUCKET = 'validate-images';
 
 // GET - List files in Supabase Storage
 export async function GET(request) {
+  const auth = validateTokenFromRequest(request);
+  if (!auth.valid) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const prefix = searchParams.get('prefix') || '';
+    const namespacedPrefix = `${auth.userId}/${prefix}`;
 
     const response = await fetch(
       `${SUPABASE_URL}/storage/v1/object/list/${IMAGES_BUCKET}`,
@@ -22,7 +29,7 @@ export async function GET(request) {
           'Authorization': `Bearer ${SUPABASE_KEY}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ prefix, limit: 1000 })
+        body: JSON.stringify({ prefix: namespacedPrefix, limit: 1000 })
       }
     );
 
@@ -42,6 +49,11 @@ export async function GET(request) {
 
 // POST - Upload file to Supabase Storage
 export async function POST(request) {
+  const auth = validateTokenFromRequest(request);
+  if (!auth.valid) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const formData = await request.formData();
     const file = formData.get('file');
@@ -51,13 +63,15 @@ export async function POST(request) {
       return NextResponse.json({ error: 'File and filename required' }, { status: 400 });
     }
 
+    const namespacedFilename = `${auth.userId}/${filename}`;
+
     // Get file as ArrayBuffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
     // Upload to Supabase
     const response = await fetch(
-      `${SUPABASE_URL}/storage/v1/object/${IMAGES_BUCKET}/${filename}`,
+      `${SUPABASE_URL}/storage/v1/object/${IMAGES_BUCKET}/${namespacedFilename}`,
       {
         method: 'POST',
         headers: {
@@ -71,10 +85,10 @@ export async function POST(request) {
     );
 
     if (response.ok) {
-      const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${IMAGES_BUCKET}/${filename}`;
+      const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${IMAGES_BUCKET}/${namespacedFilename}`;
       return NextResponse.json({
         success: true,
-        path: filename,
+        path: namespacedFilename,
         url: publicUrl
       });
     }
@@ -90,6 +104,11 @@ export async function POST(request) {
 
 // PUT - Create a signed upload URL so the client can upload directly to Supabase
 export async function PUT(request) {
+  const auth = validateTokenFromRequest(request);
+  if (!auth.valid) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { filename, contentType } = await request.json();
 
@@ -97,8 +116,10 @@ export async function PUT(request) {
       return NextResponse.json({ error: 'Filename required' }, { status: 400 });
     }
 
+    const namespacedFilename = `${auth.userId}/${filename}`;
+
     const response = await fetch(
-      `${SUPABASE_URL}/storage/v1/object/upload/sign/${IMAGES_BUCKET}/${filename}`,
+      `${SUPABASE_URL}/storage/v1/object/upload/sign/${IMAGES_BUCKET}/${namespacedFilename}`,
       {
         method: 'POST',
         headers: {
@@ -119,9 +140,9 @@ export async function PUT(request) {
     const data = await response.json();
     // Supabase returns { url: "/object/upload/sign/bucket/path?token=xxx" }
     const signedUrl = `${SUPABASE_URL}/storage/v1${data.url}`;
-    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${IMAGES_BUCKET}/${filename}`;
+    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${IMAGES_BUCKET}/${namespacedFilename}`;
 
-    return NextResponse.json({ signedUrl, publicUrl, path: filename });
+    return NextResponse.json({ signedUrl, publicUrl, path: namespacedFilename });
   } catch (e) {
     console.error('Signed URL error:', e);
     return NextResponse.json({ error: e.message }, { status: 500 });
@@ -130,6 +151,11 @@ export async function PUT(request) {
 
 // DELETE - Delete file from Supabase Storage
 export async function DELETE(request) {
+  const auth = validateTokenFromRequest(request);
+  if (!auth.valid) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const path = searchParams.get('path');
@@ -138,8 +164,10 @@ export async function DELETE(request) {
       return NextResponse.json({ error: 'Path required' }, { status: 400 });
     }
 
+    const namespacedPath = `${auth.userId}/${path}`;
+
     const response = await fetch(
-      `${SUPABASE_URL}/storage/v1/object/${IMAGES_BUCKET}/${path}`,
+      `${SUPABASE_URL}/storage/v1/object/${IMAGES_BUCKET}/${namespacedPath}`,
       {
         method: 'DELETE',
         headers: {

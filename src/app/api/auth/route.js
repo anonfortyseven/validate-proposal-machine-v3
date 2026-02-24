@@ -1,44 +1,49 @@
 import { NextResponse } from 'next/server';
-import crypto from 'crypto';
+import { createToken, validateTokenFromRequest } from '@/lib/authTokens';
 
-// In-memory token store: Map<token, { expiresAt: number }>
-const tokens = new Map();
-
-// Clean expired tokens periodically
-function cleanExpired() {
-  const now = Date.now();
-  for (const [token, data] of tokens) {
-    if (data.expiresAt < now) tokens.delete(token);
+function getUsers() {
+  try {
+    return JSON.parse(process.env.AUTH_USERS || '{}');
+  } catch {
+    return {};
   }
 }
 
-const TOKEN_TTL = 24 * 60 * 60 * 1000; // 24 hours
-
 export async function POST(request) {
-  const sitePassword = process.env.SITE_PASSWORD;
-  if (!sitePassword) {
+  const users = getUsers();
+  if (Object.keys(users).length === 0) {
     return NextResponse.json(
-      { error: 'Site password not configured' },
+      { error: 'Auth not configured' },
       { status: 500 }
     );
   }
 
   try {
-    const { password } = await request.json();
+    const { username, password } = await request.json();
 
-    if (!password || password !== sitePassword) {
+    if (!username || !password) {
       return NextResponse.json(
-        { error: 'Invalid password' },
+        { error: 'Username and password required' },
         { status: 401 }
       );
     }
 
-    cleanExpired();
+    const user = users[username];
+    if (!user || user.password !== password) {
+      return NextResponse.json(
+        { error: 'Invalid username or password' },
+        { status: 401 }
+      );
+    }
 
-    const token = crypto.randomBytes(32).toString('hex');
-    tokens.set(token, { expiresAt: Date.now() + TOKEN_TTL });
+    const token = createToken(user.id, username);
 
-    return NextResponse.json({ success: true, token });
+    return NextResponse.json({
+      success: true,
+      token,
+      userId: user.id,
+      username,
+    });
   } catch {
     return NextResponse.json(
       { error: 'Invalid request' },
@@ -48,21 +53,15 @@ export async function POST(request) {
 }
 
 export async function GET(request) {
-  const token =
-    request.headers.get('Authorization')?.replace('Bearer ', '') ||
-    request.nextUrl.searchParams.get('token');
+  const result = validateTokenFromRequest(request);
 
-  if (!token) {
-    return NextResponse.json({ valid: false }, { status: 401 });
+  if (result.valid) {
+    return NextResponse.json({
+      valid: true,
+      userId: result.userId,
+      username: result.username,
+    });
   }
 
-  cleanExpired();
-
-  const data = tokens.get(token);
-  if (data && data.expiresAt > Date.now()) {
-    return NextResponse.json({ valid: true });
-  }
-
-  tokens.delete(token);
   return NextResponse.json({ valid: false }, { status: 401 });
 }

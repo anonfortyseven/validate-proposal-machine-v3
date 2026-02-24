@@ -1014,6 +1014,7 @@ const getVideoTitles = (el) => {
 
 export default function ValidateProposalMachine() {
   const isMobile = useIsMobile();
+  const { userId } = useAuth();
   const [proposal, setProposal] = useState(null);
   const [slides, setSlides] = useState([]);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
@@ -1409,23 +1410,8 @@ export default function ValidateProposalMachine() {
         let loadedFolders = await projectStorage.loadFolders();
         loadedFolders = loadedFolders || [];
 
-        // List files from Supabase
-        const SUPABASE_URL_LOCAL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const SUPABASE_KEY_LOCAL = process.env.NEXT_PUBLIC_SUPABASE_KEY;
-        const STORAGE_BUCKET_LOCAL = 'validate-images';
-
-        const response = await fetch(
-          `${SUPABASE_URL_LOCAL}/storage/v1/object/list/${STORAGE_BUCKET_LOCAL}`,
-          {
-            method: 'POST',
-            headers: {
-              'apikey': SUPABASE_KEY_LOCAL,
-              'Authorization': `Bearer ${SUPABASE_KEY_LOCAL}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ prefix: '', limit: 1000 })
-          }
-        );
+        // List files via API route (auto-namespaced via cookie)
+        const response = await fetch('/api/storage/upload?prefix=');
 
         if (!response.ok) return;
 
@@ -1435,8 +1421,10 @@ export default function ValidateProposalMachine() {
         let metadata = await projectStorage.loadImageMeta();
         metadata = metadata || {};
 
+        const SUPABASE_URL_LOCAL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const STORAGE_BUCKET_LOCAL = 'validate-images';
         const getPublicUrl = (path) =>
-          `${SUPABASE_URL_LOCAL}/storage/v1/object/public/${STORAGE_BUCKET_LOCAL}/${path}`;
+          `${SUPABASE_URL_LOCAL}/storage/v1/object/public/${STORAGE_BUCKET_LOCAL}/${userId}/${path}`;
 
         // Map to image objects
         const loadedImages = files
@@ -1459,8 +1447,8 @@ export default function ValidateProposalMachine() {
       }
     };
 
-    loadLibraryForChat();
-  }, []);
+    if (userId) loadLibraryForChat();
+  }, [userId]);
 
   // Initialize demo project data
   const initDemoProjectData = async () => {
@@ -2598,15 +2586,6 @@ export default function ValidateProposalMachine() {
   // ============================================
 // EXPIRATION MODAL
   const generateBackgroundImages = async (slides, clientName, projectName, projectNotes) => {
-    // Storage constants for uploading
-    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_KEY;
-    const STORAGE_BUCKET = 'validate-images';
-    const headers = {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`
-    };
-    const getPublicUrl = (path) => `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${path}`;
 
     // Define a consistent artistic style for all backgrounds
     const artisticStyles = [
@@ -2674,24 +2653,22 @@ Requirements:
         const filename = `bg-${Date.now()}-${index}.${ext}`;
 
         // Upload to Supabase
-        const uploadResponse = await fetch(
-          `${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${filename}`,
-          {
-            method: 'POST',
-            headers: {
-              ...headers,
-              'Content-Type': data.image.mimeType
-            },
-            body: blob
-          }
-        );
+        // Upload via API route (auto-namespaced via cookie)
+        const formData = new FormData();
+        formData.append('file', blob, filename);
+        formData.append('filename', filename);
+        const uploadResponse = await fetch('/api/storage/upload', {
+          method: 'POST',
+          body: formData
+        });
 
         if (!uploadResponse.ok) {
           console.error(`Failed to upload background for slide ${index + 1}`);
           return null;
         }
 
-        const imageUrl = getPublicUrl(filename);
+        const uploadResult = await uploadResponse.json();
+        const imageUrl = uploadResult.url;
         console.log(`Generated background for slide ${index + 1}: ${imageUrl}`);
 
         return {
@@ -7421,43 +7398,32 @@ function ElementRenderer({ element, isSelected, onMouseDown, onUpdateElement, on
       }
     }, [isSelected]);
 
-    // Handle PDF thumbnail upload to Supabase (separate from image library)
+    // Handle PDF thumbnail upload via API route
     const handleThumbnailUpload = async (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
 
       setIsUploadingThumb(true);
       try {
-        const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_KEY;
-        const STORAGE_BUCKET = 'validate-images';
-
         // Generate unique filename in video-thumbnails subfolder
         const ext = file.name.split('.').pop();
         const filename = `video-thumbnails/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
 
-        // Upload to Supabase
-        const uploadResponse = await fetch(
-          `${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${filename}`,
-          {
-            method: 'POST',
-            headers: {
-              'apikey': SUPABASE_KEY,
-              'Authorization': `Bearer ${SUPABASE_KEY}`,
-              'Content-Type': file.type,
-              'x-upsert': 'true'
-            },
-            body: file
-          }
-        );
+        // Upload via API route (auto-namespaced via cookie)
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('filename', filename);
+        const uploadResponse = await fetch('/api/storage/upload', {
+          method: 'POST',
+          body: formData
+        });
 
         if (!uploadResponse.ok) {
           throw new Error('Upload failed');
         }
 
-        // Get public URL and update element
-        const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${filename}`;
-        onUpdateElement(element.id, { pdfThumbnail: publicUrl });
+        const result = await uploadResponse.json();
+        onUpdateElement(element.id, { pdfThumbnail: result.url });
       } catch (err) {
         console.error('Thumbnail upload error:', err);
       } finally {
@@ -8623,15 +8589,7 @@ function ChatPanel({ messages, onSend, onClearChat, isRefining, isMobile }) {
 // ============================================
 // EXPIRATION MODAL
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_KEY;
 const STORAGE_BUCKET = 'validate-images';
-const PROJECTS_BUCKET = 'validate-projects';
-
-// Supabase headers for API calls
-const supabaseHeaders = {
-  'apikey': SUPABASE_KEY,
-  'Authorization': `Bearer ${SUPABASE_KEY}`
-};
 
 // ============================================
 // EXPIRATION MODAL
@@ -8818,6 +8776,7 @@ const projectStorage = {
 // EXPIRATION MODAL
 
 function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterVideosOnly = false }) {
+  const { userId } = useAuth();
   const [folders, setFolders] = useState([]);
   const [images, setImages] = useState([]);
   const [currentFolder, setCurrentFolder] = useState(null);
@@ -8843,14 +8802,8 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
   // Special folder ID for trash
   const TRASH_FOLDER_ID = '__trash__';
 
-  // Supabase helpers
-  const supabaseHeaders = {
-    'apikey': SUPABASE_KEY,
-    'Authorization': `Bearer ${SUPABASE_KEY}`
-  };
-
-  const getPublicUrl = (path) => 
-    `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${path}`;
+  const getPublicUrl = (path) =>
+    `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${userId}/${path}`;
 
   // Load from Supabase on open
   useEffect(() => {
@@ -9036,22 +8989,20 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
       const ext = data.image.mimeType.split('/')[1] || 'png';
       const filename = `generated-${Date.now()}.${ext}`;
 
-      // Upload to Supabase
-      const uploadResponse = await fetch(
-        `${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${filename}`,
-        {
-          method: 'POST',
-          headers: {
-            ...supabaseHeaders,
-            'Content-Type': data.image.mimeType
-          },
-          body: blob
-        }
-      );
+      // Upload via API route (auto-namespaced via cookie)
+      const formData = new FormData();
+      formData.append('file', blob, filename);
+      formData.append('filename', filename);
+      const uploadResponse = await fetch('/api/storage/upload', {
+        method: 'POST',
+        body: formData
+      });
 
       if (!uploadResponse.ok) {
         throw new Error('Failed to upload generated image');
       }
+
+      const uploadResult = await uploadResponse.json();
 
       // Add to images list
       const newImage = {
@@ -9059,8 +9010,8 @@ function ImageLibrary({ isOpen, onClose, onSelectImage, onLibraryLoaded, filterV
         name: generatePrompt.slice(0, 50) + (generatePrompt.length > 50 ? '...' : ''),
         folderId: currentFolder,
         path: filename,
-        url: getPublicUrl(filename),
-        thumbnail: getPublicUrl(filename),
+        url: uploadResult.url,
+        thumbnail: uploadResult.url,
         createdAt: new Date().toISOString(),
         size: blob.size,
         generated: true

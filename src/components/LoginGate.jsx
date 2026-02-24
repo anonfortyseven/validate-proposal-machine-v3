@@ -10,11 +10,25 @@ export function useAuth() {
 }
 
 const TOKEN_KEY = 'validate_auth_token';
+const USERID_KEY = 'validate_user_id';
+const USERNAME_KEY = 'validate_username';
+const COOKIE_NAME = 'validate_token';
+
+function setTokenCookie(token) {
+  document.cookie = `${COOKIE_NAME}=${token}; path=/; SameSite=Strict`;
+}
+
+function clearTokenCookie() {
+  document.cookie = `${COOKIE_NAME}=; path=/; SameSite=Strict; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+}
 
 export default function LoginGate({ children }) {
   const [authenticated, setAuthenticated] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [userId, setUserId] = useState(null);
+  const [currentUsername, setCurrentUsername] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -26,6 +40,8 @@ export default function LoginGate({ children }) {
       setChecking(false);
       return;
     }
+    // Set cookie from stored token (in case page was refreshed)
+    setTokenCookie(token);
     fetch('/api/auth/', {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -33,12 +49,22 @@ export default function LoginGate({ children }) {
       .then((data) => {
         if (data.valid) {
           setAuthenticated(true);
+          setUserId(data.userId);
+          setCurrentUsername(data.username);
+          sessionStorage.setItem(USERID_KEY, data.userId);
+          sessionStorage.setItem(USERNAME_KEY, data.username);
         } else {
           sessionStorage.removeItem(TOKEN_KEY);
+          sessionStorage.removeItem(USERID_KEY);
+          sessionStorage.removeItem(USERNAME_KEY);
+          clearTokenCookie();
         }
       })
       .catch(() => {
         sessionStorage.removeItem(TOKEN_KEY);
+        sessionStorage.removeItem(USERID_KEY);
+        sessionStorage.removeItem(USERNAME_KEY);
+        clearTokenCookie();
       })
       .finally(() => setChecking(false));
   }, []);
@@ -52,15 +78,20 @@ export default function LoginGate({ children }) {
       const res = await fetch('/api/auth/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ username, password }),
       });
       const data = await res.json();
 
       if (data.success && data.token) {
         sessionStorage.setItem(TOKEN_KEY, data.token);
+        sessionStorage.setItem(USERID_KEY, data.userId);
+        sessionStorage.setItem(USERNAME_KEY, data.username);
+        setTokenCookie(data.token);
+        setUserId(data.userId);
+        setCurrentUsername(data.username);
         setAuthenticated(true);
       } else {
-        setError(data.error || 'Invalid password');
+        setError(data.error || 'Invalid credentials');
         setPassword('');
       }
     } catch {
@@ -72,7 +103,13 @@ export default function LoginGate({ children }) {
 
   const logout = () => {
     sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(USERID_KEY);
+    sessionStorage.removeItem(USERNAME_KEY);
+    clearTokenCookie();
     setAuthenticated(false);
+    setUserId(null);
+    setCurrentUsername(null);
+    setUsername('');
     setPassword('');
     setError('');
   };
@@ -87,7 +124,7 @@ export default function LoginGate({ children }) {
 
   if (authenticated) {
     return (
-      <AuthContext.Provider value={{ logout }}>
+      <AuthContext.Provider value={{ logout, userId, username: currentUsername }}>
         {children}
       </AuthContext.Provider>
     );
@@ -120,17 +157,30 @@ export default function LoginGate({ children }) {
           {/* Text */}
           <div className="text-center mb-8">
             <h1 className="text-text-primary text-xl font-medium mb-2">Authorized Access Only</h1>
-            <p className="text-text-tertiary text-sm">Enter your password to continue</p>
+            <p className="text-text-tertiary text-sm">Sign in to continue</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">
               <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Username"
+                autoFocus
+                autoComplete="username"
+                disabled={isLoading}
+                className="w-full px-4 py-4 bg-bg-tertiary border border-border rounded-xl text-text-primary placeholder-text-muted focus:border-accent focus:ring-2 focus:ring-accent-subtle focus:outline-none transition-all text-center text-lg"
+              />
+            </div>
+
+            <div className="relative">
+              <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
-                autoFocus
+                placeholder="Password"
+                autoComplete="current-password"
                 disabled={isLoading}
                 className="w-full px-4 py-4 bg-bg-tertiary border border-border rounded-xl text-text-primary placeholder-text-muted focus:border-accent focus:ring-2 focus:ring-accent-subtle focus:outline-none transition-all text-center text-lg tracking-wider"
               />
@@ -145,7 +195,7 @@ export default function LoginGate({ children }) {
 
             <button
               type="submit"
-              disabled={isLoading || !password}
+              disabled={isLoading || !username || !password}
               className="w-full py-4 bg-accent hover:bg-accent-secondary disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-all duration-200 hover:shadow-glow flex items-center justify-center gap-2"
             >
               {isLoading ? (
