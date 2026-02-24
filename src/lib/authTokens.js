@@ -1,27 +1,31 @@
 import crypto from 'crypto';
 
-// In-memory token store: Map<token, { userId, username, expiresAt }>
-const tokens = new Map();
-
 const TOKEN_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
-// Clean expired tokens
-function cleanExpired() {
-  const now = Date.now();
-  for (const [token, data] of tokens) {
-    if (data.expiresAt < now) tokens.delete(token);
-  }
+// Use SUPABASE_KEY as signing secret (available server-side only)
+function getSecret() {
+  return process.env.SUPABASE_KEY || 'fallback-secret';
 }
 
-// Create a new token for a user
+function sign(payload) {
+  const hmac = crypto.createHmac('sha256', getSecret());
+  hmac.update(payload);
+  return hmac.digest('base64url');
+}
+
+// Create a signed token containing userId + username + expiry
 export function createToken(userId, username) {
-  cleanExpired();
-  const token = crypto.randomBytes(32).toString('hex');
-  tokens.set(token, { userId, username, expiresAt: Date.now() + TOKEN_TTL });
-  return token;
+  const payload = JSON.stringify({
+    userId,
+    username,
+    exp: Date.now() + TOKEN_TTL,
+  });
+  const payloadB64 = Buffer.from(payload).toString('base64url');
+  const signature = sign(payloadB64);
+  return `${payloadB64}.${signature}`;
 }
 
-// Validate token from request (cookie or Authorization header)
+// Validate token from request (cookie, Authorization header, or query param)
 // Returns { valid, userId, username } or { valid: false }
 export function validateTokenFromRequest(request) {
   // Try cookie first
@@ -42,15 +46,20 @@ export function validateTokenFromRequest(request) {
 
   if (!token) return { valid: false };
 
-  cleanExpired();
+  // Verify signature
+  const parts = token.split('.');
+  if (parts.length !== 2) return { valid: false };
 
-  const data = tokens.get(token);
-  if (data && data.expiresAt > Date.now()) {
-    return { valid: true, userId: data.userId, username: data.username };
+  const [payloadB64, signature] = parts;
+  const expectedSig = sign(payloadB64);
+
+  if (signature !== expectedSig) return { valid: false };
+
+  try {
+    const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString());
+    if (payload.exp < Date.now()) return { valid: false };
+    return { valid: true, userId: payload.userId, username: payload.username };
+  } catch {
+    return { valid: false };
   }
-
-  if (data) tokens.delete(token);
-  return { valid: false };
 }
-
-export { tokens };
